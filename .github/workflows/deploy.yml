@@ -35,7 +35,7 @@ jobs:
           fi
         done
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH }}
       
     - name: Checkout code
       uses: actions/checkout@v2

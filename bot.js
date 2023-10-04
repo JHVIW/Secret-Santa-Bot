@@ -1,11 +1,14 @@
 import { config } from 'dotenv';
-import Discord from 'discord.js';
+import { Client, Intents } from 'discord.js';
+
 config();
 
-// test
+const intents = new Intents([
+  Intents.FLAGS.GUILDS,           // Required for basic information about servers
+  Intents.FLAGS.GUILD_MESSAGES,   // Required for message-related events
+]);
 
-const client = new Discord.Client();
-const prefix = '!';
+const client = new Client({ intents });
 
 const participants = {};
 

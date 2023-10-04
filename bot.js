@@ -2,6 +2,8 @@ import { config } from 'dotenv';
 import Discord from 'discord.js';
 config();
 
+// test
+
 const client = new Discord.Client();
 const prefix = '!';
 

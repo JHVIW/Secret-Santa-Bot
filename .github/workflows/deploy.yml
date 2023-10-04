@@ -3,7 +3,7 @@ name: Discord Bot Deployment
 on:
   push:
     branches:
-      - main # Change this to your main branch name
+      - master # Change this to your main branch name
 
 jobs:
   deploy:

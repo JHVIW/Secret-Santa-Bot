@@ -19,6 +19,8 @@
   },
   "homepage": "https://github.com/JHVIW/Secret-Santa-Discord-Bot#readme",
   "dependencies": {
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "discord.js": "^13.1.0"
+    
   }
 }

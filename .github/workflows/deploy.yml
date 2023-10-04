@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+    - name: Kill all running instances
+      run: killall -9 node
     - name: Checkout code
       uses: actions/checkout@v2
 

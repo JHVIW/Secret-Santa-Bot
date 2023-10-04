@@ -1,6 +1,8 @@
 import { config } from 'dotenv';
 import Discord from 'discord.js';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+import path from 'path';
 config();
 
 const { Client, Intents } = Discord;
@@ -16,7 +18,11 @@ const prefix = '!';
 
 const participants = {};
 
-const participantsFilePath = 'C:\\Users\\rickv\\Desktop\\Secret Santa Bot\\participants.json';
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+
+// Create the participants.json file path using the current directory
+const participantsFilePath = path.join(currentDirectory, 'participants.json');
+
 
 // Function to initialize the JSON file with an empty array
 function initializeParticipantsFile() {
@@ -131,7 +137,7 @@ client.on('messageCreate', async (message) => {
             };
     
             // Write the new participant's data to the JSON file
-            fs.readFile("C:\\Users\\rickv\\Desktop\\Secret Santa Bot\\participants.json", 'utf8', (err, data) => {
+            fs.readFile(participantsFilePath, 'utf8', (err, data) => {
                 if (err) {
                     console.error('Error reading participants.json:', err);
                     return;
@@ -143,7 +149,7 @@ client.on('messageCreate', async (message) => {
                 participantsData.push(newParticipant);
     
                 // Write the updated data back to the JSON file
-                fs.writeFile("C:\\Users\\rickv\\Desktop\\Secret Santa Bot\\participants.json", JSON.stringify(participantsData), (err) => {
+                fs.writeFile(participantsFilePath, JSON.stringify(participantsData), (err) => {
                     if (err) {
                         console.error('Error writing participants.json:', err);
                         return;

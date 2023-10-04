@@ -6,7 +6,7 @@ import { ToadScheduler } from 'toad-scheduler';
 import schedule from 'node-schedule'
 import fs from 'fs';
 
-const participantsFilePath = 'C:\\Users\\rickv\\Desktop\\Secret Santa Bot\\participants.json';
+const participantsFilePath = 'participants.json';
 let participantsData = [];
 
 var username = "";

@@ -6,7 +6,7 @@ import { ToadScheduler } from 'toad-scheduler';
 import { SimpleIntervalJob, Task } from 'toad-scheduler';
 import fs from 'fs';
 
-const participantsFilePath = 'C:\\Users\\rickv\\Desktop\\Secret Santa Bot\\participants.json';
+const participantsFilePath = 'participants.json';
 
 var username = "";
 var password = "";

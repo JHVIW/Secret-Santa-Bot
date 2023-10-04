@@ -4,21 +4,23 @@
         "name": "saltenator",
         "tradelink": "https://steamcommunity.com/tradeoffer/new/?partner=325176772&token=DmiLKZ6K",
         "interests": [
-            "banana",
-            "banana",
-            "banana"
+            "salt",
+            "pepper",
+            "lemon"
         ],
-        "steamID64": "76561198285442500"
+        "steamID64": "76561198285442500",
+        "assigned": "1079072609284653087"
     },
     {
-        "userId": "224233557927657472",
-        "name": "heepings",
-        "tradelink": "https://steamcommunity.com/tradeoffer/new/?partner=361284731&token=4tdbsf9f",
+        "userId": "1079072609284653087",
+        "name": "Marter",
+        "tradelink": "https://steamcommunity.com/tradeoffer/new/?partner=1184358194&token=l0THxBL1",
         "interests": [
-            "cock",
-            "ball",
-            "torture"
+            "sambal",
+            "chicken",
+            "pizza"
         ],
-        "steamID64": "76561198321550459"
+        "steamID64": "76561199144623922",
+        "assigned": "143373549338361856"
     }
 ]

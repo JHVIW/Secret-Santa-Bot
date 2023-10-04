@@ -126,6 +126,7 @@ client.on('messageCreate', async (message) => {
                 tradelink,
                 interests,
                 steamID64: steamID64.toString(),
+                assigned: null,
             };
     
             // Write the new participant's data to the JSON file
@@ -176,33 +177,42 @@ client.on('messageCreate', async (message) => {
     else if (command === 'roll') {
         // Check if the message sender is an administrator
         if (message.member.permissions.has('ADMINISTRATOR')) {
-            // Get an array of user IDs and shuffle them
-            const userIds = Object.keys(participants);
-            const shuffledUserIds = shuffleArray(userIds);
-    
-            // Initialize an array to store the assignments
-            const assignments = [];
-    
-            // Loop through shuffled user IDs
-            for (let i = 0; i < shuffledUserIds.length; i++) {
-                const senderId = shuffledUserIds[i];
-                // Find a recipient who is not the sender
-                let receiverId = senderId;
-                while (receiverId === senderId) {
-                    receiverId = shuffledUserIds[Math.floor(Math.random() * shuffledUserIds.length)];
+            // Get the participants from participants.json
+            fs.readFile(participantsFilePath, 'utf8', (err, data) => {
+                if (err) {
+                    console.error('Error reading participants.json:', err);
+                    return;
                 }
     
-                // Get recipient's information and sender's user object
-                const receiver = participants[receiverId];
-                const senderUser = message.guild.members.cache.get(senderId);
+                const participantsData = JSON.parse(data);
     
-                // Create a string with recipient's interests
-                const interestsString = receiver.interests.length > 0
-                    ? `Interests: ${receiver.interests.join(', ')}`
-                    : 'No interests provided.';
+                // Get an array of user IDs and shuffle them
+                const userIds = participantsData.map(participant => participant.userId);
+                const shuffledUserIds = shuffleArray(userIds);
     
-                // Send a private message to the sender with recipient's information
-                senderUser.send(`
+                // Initialize an array to store the assignments
+                const assignments = [];
+    
+                // Loop through shuffled user IDs
+                for (let i = 0; i < shuffledUserIds.length; i++) {
+                    const senderId = shuffledUserIds[i];
+                    // Find a recipient who is not the sender
+                    let receiverId = senderId;
+                    while (receiverId === senderId) {
+                        receiverId = shuffledUserIds[Math.floor(Math.random() * shuffledUserIds.length)];
+                    }
+    
+                    // Get recipient's information and sender's user object
+                    const receiver = participantsData.find(participant => participant.userId === receiverId);
+                    const senderUser = message.guild.members.cache.get(senderId);
+    
+                    // Create a string with recipient's interests
+                    const interestsString = receiver.interests.length > 0
+                        ? `Interests: ${receiver.interests.join(', ')}`
+                        : 'No interests provided.';
+    
+                    // Send a private message to the sender with recipient's information
+                    senderUser.send(`
     🎅🎁🌟 **Ho ho ho!** 🌟🎁🎅
     
     Your Secret Santa gift recipient:
@@ -216,25 +226,35 @@ client.on('messageCreate', async (message) => {
     Spread joy and warmth this holiday season! 🎅🌟🎁
     `).catch(console.error);
     
-                // Store the assignment information
-                assignments.push({ senderId, receiverId });
-            }
+                    // Update the assignment information in participantsData
+                    const senderIndex = participantsData.findIndex(participant => participant.userId === senderId);
+                    participantsData[senderIndex].assigned = receiverId;
     
-            // Update the assignments in the JSON file
-            fs.writeFile(participantsFilePath, JSON.stringify(assignments), (err) => {
-                if (err) {
-                    console.error('Error writing assignments to participants.json:', err);
-                } else {
-                    console.log('Assignments updated in participants.json');
+                    // Store the assignment information
+                    const assignment = {
+                        receiverId: receiverId,
+                    };
+                    assignments.push(assignment);
                 }
-            });
     
-            // Notify in the channel that pairs have been sent
-            message.channel.send('Secret Santa pairs have been assigned and updated!');
+                // Update the assignments in the JSON file
+                fs.writeFile(participantsFilePath, JSON.stringify(participantsData, null, 4), (err) => {
+                    if (err) {
+                        console.error('Error writing assignments to participants.json:', err);
+                    } else {
+                        console.log('Assignments updated in participants.json');
+                    }
+                });
+    
+                // Notify in the channel that pairs have been sent
+                message.channel.send('Secret Santa pairs have been assigned and updated!');
+            });
         } else {
             message.channel.send(`<@${message.author.id}> You do not have permission to use this command.`);
         }
     }
+    
+    
     
 
 });
@@ -249,4 +269,4 @@ function shuffleArray(array) {
 }
 
 
-client.login("MTE0Njg2NDg5Nzc0MTgxOTkyNQ.GAlVdl.1r1bEK3VJ8OtSV8l6qBHQ1PPkhW0kz65Peoe_g");
+client.login(process.env.DISCORD_TOKEN);

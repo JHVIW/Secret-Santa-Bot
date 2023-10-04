@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node discord_bot\\bot.js && node steam_bot\\retreive.js && steam_bot\\send.js"
+    "start": "node discord_bot/bot.js && node steam_bot/retreive.js && node steam_bot/send.js"
   },
   "repository": {
     "type": "git",

@@ -99,7 +99,7 @@ client.on('message', async (message) => {
     // Clears channel
     else if (command === 'clear') {
         // Check if the message sender is an administrator
-        if (message.member.hasPermission('ADMINISTRATOR')) {
+        if (message.member.permissions.has('ADMINISTRATOR')) {
             // Fetch the last 100 messages in the channel and delete them
             message.channel.messages.fetch({ limit: 100 })
                 .then(messages => {
@@ -114,7 +114,7 @@ client.on('message', async (message) => {
 
     else if (command === 'roll') {
         // Check if the message sender is an administrator
-        if (message.member.hasPermission('ADMINISTRATOR')) {
+        if (message.member.permissions.has('ADMINISTRATOR')) {
             // Get an array of user IDs and shuffle them
             const userIds = Object.keys(participants);
 

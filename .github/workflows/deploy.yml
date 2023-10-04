@@ -15,23 +15,29 @@ jobs:
       run: |
         # Define your GitHub Personal Access Token (PAT) with workflow permissions
         GITHUB_TOKEN=${{ secrets.GH_TOKEN }}
-        
+
         # Get the current workflow run ID
         WORKFLOW_RUN_ID=$(echo $GITHUB_RUN_ID)
-        
+
         # Get the list of workflow runs for the current workflow
         RUNS=$(curl -s -X GET "https://api.github.com/repos/JHVIW/Secret-Santa-Bot/actions/runs" -H "Authorization: token $GITHUB_TOKEN")
-        
-        # Loop through each run and cancel if it's not the current run
-        for row in $(echo "${RUNS}" | jq -r '.workflow_runs[] | @base64'); do
+
+        # Sort the runs by creation timestamp in descending order
+        SORTED_RUNS=$(echo "${RUNS}" | jq '[.workflow_runs[]] | sort_by(.created_at) | reverse')
+
+        # Loop through the sorted runs and find the last running one to cancel
+        for row in $(echo "${SORTED_RUNS}" | jq -r '.[] | @base64'); do
           _jq() {
             echo ${row} | base64 --decode | jq -r ${1}
           }
-          
+
           RUN_ID=$(_jq '.id')
-          
-          if [ "$RUN_ID" != "$WORKFLOW_RUN_ID" ]; then
+          STATUS=$(_jq '.status')
+
+          if [ "$STATUS" == "in_progress" ] && [ "$RUN_ID" != "$WORKFLOW_RUN_ID" ]; then
+            # Cancel the last running workflow and exit the loop
             curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/cancel" -H "Authorization: token $GITHUB_TOKEN"
+            break
           fi
         done
       env:

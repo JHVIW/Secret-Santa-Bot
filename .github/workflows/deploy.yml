@@ -12,8 +12,30 @@ jobs:
     steps:
 
     - name: Kill all running instances
-      run: killall -9 node
-      continue-on-error: true
+      run: |
+        # Define your GitHub Personal Access Token (PAT) with workflow permissions
+        GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+        
+        # Get the current workflow run ID
+        WORKFLOW_RUN_ID=$(echo $GITHUB_RUN_ID)
+        
+        # Get the list of workflow runs for the current workflow
+        RUNS=$(curl -s -X GET "https://api.github.com/repos/${{ github.repository }}/actions/runs" -H "Authorization: token $GITHUB_TOKEN")
+        
+        # Loop through each run and cancel if it's not the current run
+        for row in $(echo "${RUNS}" | jq -r '.workflow_runs[] | @base64'); do
+          _jq() {
+            echo ${row} | base64 --decode | jq -r ${1}
+          }
+          
+          RUN_ID=$(_jq '.id')
+          
+          if [ "$RUN_ID" != "$WORKFLOW_RUN_ID" ]; then
+            curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/cancel" -H "Authorization: token $GITHUB_TOKEN"
+          fi
+        done
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
     - name: Checkout code
       uses: actions/checkout@v2

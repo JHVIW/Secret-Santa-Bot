@@ -11,6 +11,8 @@ const intents = new Intents([
 
 const client = new Client({ intents });
 
+const prefix = '!';
+
 const participants = {};
 
 // Define the ID of the channel where the !signup command should work

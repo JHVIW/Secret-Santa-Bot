@@ -12,7 +12,15 @@ jobs:
     steps:
 
     - name: Kill all running instances
-      run: killall -9 node
+      run: |
+        if killall -9 node; then
+          echo "Found and terminated Node.js processes."
+        else
+          echo "No Node.js processes found."
+        fi
+      # Ignore exit code (always continue to the next step)
+      continue-on-error: true
+      
     - name: Checkout code
       uses: actions/checkout@v2
 

@@ -1,0 +1,30 @@
+name: Discord Bot Deployment
+
+on:
+  push:
+    branches:
+      - main # Change this to your main branch name
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: 14
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Deploy bot
+      run: |
+        # Any additional deployment steps you need, e.g., restarting the bot
+        npm start
+      env:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}

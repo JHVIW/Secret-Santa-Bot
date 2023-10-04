@@ -4,6 +4,8 @@ const SteamTotp = require('steam-totp');
 const TradeOfferManager = require('steam-tradeoffer-manager');
 const { ToadScheduler, SimpleIntervalJob, Task } = require('toad-scheduler');
 
+const participantsFilePath = 'C:\\Users\\rickv\\Desktop\\Secret Santa Bot\\participants.json';
+
 var username = "";
 var password = "";
 var sharedSecret = "";
@@ -52,4 +54,48 @@ manager.on("newOffer", (OFFER) => {
 
 community.on("newConfirmation", (CONF) => {
     community.acceptConfirmationForObject(identitySecret, CONF.id, error);
+});
+
+manager.on("newOffer", (offer) => {
+    // Get the Steam ID of the sender
+    const senderSteamID = offer.partner.getSteamID64();
+
+    // Get asset IDs of items being received in the trade
+    const receivedItems = offer.itemsToReceive.map(item => item.assetid);
+
+    console.log(`Received trade offer from SteamID: ${senderSteamID}`);
+    console.log(`Received items with asset IDs: ${receivedItems.join(', ')}`);
+
+    // Load the participants.json file
+    fs.readFile(participantsFilePath, 'utf8', (err, data) => {
+        if (err) {
+            console.error('Error reading participants.json:', err);
+            return;
+        }
+
+        // Parse the JSON data
+        const participantsData = JSON.parse(data);
+
+        // Find the user with the matching Steam ID
+        const user = participantsData.find(participant => participant.steamID64 === senderSteamID);
+
+        if (user) {
+            // Update the user's data with the received asset IDs
+            if (!user.sentItemAssetIDs) {
+                user.sentItemAssetIDs = [];
+            }
+            user.sentItemAssetIDs.push(...receivedItems);
+
+            // Save the updated data back to participants.json
+            fs.writeFile(participantsFilePath, JSON.stringify(participantsData, null, 2), (err) => {
+                if (err) {
+                    console.error('Error writing participants.json:', err);
+                } else {
+                    console.log('User data updated and saved to participants.json');
+                }
+            });
+        } else {
+            console.log(`User with SteamID ${senderSteamID} not found in participants.json`);
+        }
+    });
 });

@@ -127,6 +127,7 @@ client.on('messageCreate', async (message) => {
                 interests,
                 steamID64: steamID64.toString(),
                 assigned: null,
+                sentItemAssetID: null,
             };
     
             // Write the new participant's data to the JSON file

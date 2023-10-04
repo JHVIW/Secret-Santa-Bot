@@ -21,6 +21,12 @@ jobs:
     - name: Install dependencies
       run: npm install
 
+    - name: Uninstall old discord.js (if it exists)
+      run: npm uninstall discord.js
+
+    - name: Install dependencies
+      run: npm install discord.js@latest
+
     - name: Deploy bot
       run: |
         # Any additional deployment steps you need, e.g., restarting the bot

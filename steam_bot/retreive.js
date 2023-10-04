@@ -1,8 +1,10 @@
-const SteamUser = require('steam-user');
-const SteamCommunity = require('steamcommunity');
-const SteamTotp = require('steam-totp');
-const TradeOfferManager = require('steam-tradeoffer-manager');
-const { ToadScheduler, SimpleIntervalJob, Task } = require('toad-scheduler');
+import SteamUser from 'steam-user';
+import SteamCommunity from 'steamcommunity';
+import SteamTotp from 'steam-totp';
+import TradeOfferManager from 'steam-tradeoffer-manager';
+import { ToadScheduler } from 'toad-scheduler';
+import { SimpleIntervalJob, Task } from 'toad-scheduler';
+import fs from 'fs';
 
 const participantsFilePath = 'C:\\Users\\rickv\\Desktop\\Secret Santa Bot\\participants.json';
 

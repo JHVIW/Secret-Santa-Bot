@@ -11,7 +11,7 @@ jobs:
 
     steps:
 
-    - name: Kill the last running instance
+    - name: Kill all running instances
       run: |
         # Define your GitHub Personal Access Token (PAT) with workflow permissions
         GITHUB_TOKEN=${{ secrets.GH_TOKEN }}
@@ -19,19 +19,24 @@ jobs:
         # Get the current workflow run ID
         WORKFLOW_RUN_ID=$(echo $GITHUB_RUN_ID)
         
-        # Get the list of workflow runs for the current workflow and sort them by created_at
-        RUNS=$(curl -s -X GET "https://api.github.com/repos/JHVIW/Secret-Santa-Bot/actions/runs" -H "Authorization: token $GITHUB_TOKEN" | jq -r '.workflow_runs | sort_by(.created_at) | .[] | .id')
+        # Get the list of workflow runs for the current workflow
+        RUNS=$(curl -s -X GET "https://api.github.com/repos/JHVIW/Secret-Santa-Bot/actions/runs" -H "Authorization: token $GITHUB_TOKEN")
         
-        # Get the last run (which will be the most recent)
-        LAST_RUN_ID=$(echo "$RUNS" | tail -n 1)
-        
-        # Cancel the last run if it's not the current run
-        if [ "$LAST_RUN_ID" != "$WORKFLOW_RUN_ID" ]; then
-          curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/actions/runs/$LAST_RUN_ID/cancel" -H "Authorization: token $GITHUB_TOKEN"
-        fi
+        # Loop through each run and cancel if it's not the current run
+        for row in $(echo "${RUNS}" | jq -r '.workflow_runs[] | @base64'); do
+          _jq() {
+            echo ${row} | base64 --decode | jq -r ${1}
+          }
+          
+          RUN_ID=$(_jq '.id')
+          
+          if [ "$RUN_ID" != "$WORKFLOW_RUN_ID" ]; then
+            curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/cancel" -H "Authorization: token $GITHUB_TOKEN"
+          fi
+        done
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          
+      
     - name: Checkout code
       uses: actions/checkout@v2
 

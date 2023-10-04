@@ -14,7 +14,7 @@ jobs:
     - name: Kill all running instances
       run: |
         # Define your GitHub Personal Access Token (PAT) with workflow permissions
-        GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN=${{ secrets.GH_TOKEN }}
         
         # Get the current workflow run ID
         WORKFLOW_RUN_ID=$(echo $GITHUB_RUN_ID)
@@ -35,7 +35,7 @@ jobs:
           fi
         done
       env:
-        GITHUB_TOKEN: ${{ secrets.GH }}
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       
     - name: Checkout code
       uses: actions/checkout@v2

@@ -65,7 +65,7 @@ client.on('messageCreate', async (message) => {
     if (command === 'signup') {
         // Check if the user has already signed up
         if (participants[message.author.id]) {
-            const replyMessage = await message.channel.send('You have already signed up for Secret Santa. Your message will be deleted!');
+            const replyMessage = await message.channel.send(`<@${message.author.id}> You have already signed up for Secret Santa. Your message will be deleted!`);
 
             // Delete the user's message to prevent flooding
             try {
@@ -87,14 +87,14 @@ client.on('messageCreate', async (message) => {
 
         // Check if the required information is provided
         if (!tradelink || interests.length < 3) {
-            message.channel.send('Please provide a valid trade link and at least 3 interests.');
+            message.channel.send(`<@${message.author.id}>Please provide a valid trade link and at least 3 interests.`);
             return;
         }
 
         // Store participant's information
         participants[message.author.id] = { name: message.author.username, tradelink, interests };
         await message.delete();
-        message.channel.send('You have successfully signed up for Secret Santa!');
+        message.channel.send(`<@${message.author.id}> You have successfully signed up for Secret Santa!`);
     }
     // Clears channel
     else if (command === 'clear') {
@@ -107,7 +107,7 @@ client.on('messageCreate', async (message) => {
                 })
                 .catch(console.error);
         } else {
-            message.channel.send('You do not have permission to use this command.');
+            message.channel.send(`<@${message.author.id}>You do not have permission to use this command.`);
         }
     }
 
@@ -193,7 +193,7 @@ Spread joy and warmth this holiday season! 🎅🌟🎁
                 message.channel.send('Secret Santa pairs have been sent out!');
             }
         } else {
-            message.channel.send('You do not have permission to use this command.');
+            message.channel.send(`<@${message.author.id}> You do not have permission to use this command.`);
         }
     }
 

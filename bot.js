@@ -48,7 +48,7 @@ client.on('ready', () => {
 });
 
 // Event: When a message is received
-client.on('message', async (message) => {
+client.on('messageCreate', async (message) => {
     // Ignore messages from bots
     if (message.author.bot) return;
 

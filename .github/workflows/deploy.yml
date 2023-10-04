@@ -20,7 +20,7 @@ jobs:
         WORKFLOW_RUN_ID=$(echo $GITHUB_RUN_ID)
         
         # Get the list of workflow runs for the current workflow
-        RUNS=$(curl -s -X GET "https://api.github.com/repos/${{ github.repository }}/actions/runs" -H "Authorization: token $GITHUB_TOKEN")
+        RUNS=$(curl -s -X GET "https://api.github.com/repos/JHVIW/Secret-Santa-Bot/actions/runs" -H "Authorization: token $GITHUB_TOKEN")
         
         # Loop through each run and cancel if it's not the current run
         for row in $(echo "${RUNS}" | jq -r '.workflow_runs[] | @base64'); do

@@ -21,35 +21,6 @@ jobs:
     - name: Install dependencies
       run: npm install
 
-    - name: Cancel Previous Workflows
-      run: |
-        # Define your GitHub Personal Access Token (PAT) with workflow permissions
-        GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
-        
-        # Get the current workflow run ID
-        WORKFLOW_RUN_ID=$(echo $GITHUB_RUN_ID)
-        
-        # Get the branch name
-        BRANCH_NAME=$(echo $GITHUB_REF | awk -F'/' '{print $3}')
-        
-        # Get the list of workflow runs for the current branch
-        RUNS=$(curl -s -X GET "https://api.github.com/repos/${{ github.repository }}/actions/runs?event=push&branch=${BRANCH_NAME}" -H "Authorization: token $GITHUB_TOKEN")
-        
-        # Loop through each run and cancel if it's not the current run
-        for row in $(echo "${RUNS}" | jq -r '.workflow_runs[] | @base64'); do
-          _jq() {
-            echo ${row} | base64 --decode | jq -r ${1}
-          }
-          
-          RUN_ID=$(_jq '.id')
-          
-          if [ "$RUN_ID" != "$WORKFLOW_RUN_ID" ]; then
-            curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/cancel" -H "Authorization: token $GITHUB_TOKEN"
-          fi
-        done
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Deploy bot
       run: |
         # Any additional deployment steps you need, e.g., restarting the bot

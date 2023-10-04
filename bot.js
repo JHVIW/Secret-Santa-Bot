@@ -16,7 +16,7 @@ const prefix = '!';
 const participants = {};
 
 // Define the ID of the channel where the !signup command should work
-const signupChannelId = '1159147751855112192'; // Replace with the actual channel ID
+const signupChannelId = '1159147751855112192';
 
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);

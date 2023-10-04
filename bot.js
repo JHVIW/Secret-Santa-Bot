@@ -1,7 +1,8 @@
 import { config } from 'dotenv';
-import { Client, Intents } from 'discord.js';
-
+import Discord from 'discord.js';
 config();
+
+const { Client, Intents } = Discord;
 
 const intents = new Intents([
   Intents.FLAGS.GUILDS,           // Required for basic information about servers

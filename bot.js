@@ -224,11 +224,11 @@ client.on('messageCreate', async (message) => {
     
     Your Secret Santa gift recipient:
     🎄 **Name:** ${receiver.name}
-    🎁 **Trade Link:** ${receiver.tradelink}
+    🎁 **Trade Link: BOT TRADELINK COMES HERE**
     🎉 **Interests:** ${interestsString}
     
     🎁 Plan your gift with care! It should be approximately **$20 (145 RMB)**, and please keep it within 10% of this price (around $18 to $22).
-    📅 Send your heartwarming gift to your assigned recipient before December 25.
+    📅 Send your heartwarming gift to the bot before December 17th.
     
     Spread joy and warmth this holiday season! 🎅🌟🎁
     `).catch(console.error);

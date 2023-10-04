@@ -5,8 +5,8 @@ config();
 const { Client, Intents } = Discord;
 
 const intents = new Intents([
-  Intents.FLAGS.GUILDS,           // Required for basic information about servers
-  Intents.FLAGS.GUILD_MESSAGES,   // Required for message-related events
+    Intents.FLAGS.GUILDS,           // Required for basic information about servers
+    Intents.FLAGS.GUILD_MESSAGES,   // Required for message-related events
 ]);
 
 const client = new Client({ intents });
@@ -174,18 +174,19 @@ Spread joy and warmth this holiday season! 🎅🌟🎁
 
                     // Send a private message to the sender with recipient's information
                     senderUser.send(`
-                    🎅🎁🌟 Ho ho ho! 🌟🎁🎅
+🎅🎁🌟 **Ho ho ho!** 🌟🎁🎅
 
-                    Your Secret Santa gift recipient:
-                    🎄 Name: ${receiver.name}
-                    🎁 Trade Link: ${receiver.tradelink}
-                    🎉 Interests: ${interestsString}
+Your Secret Santa gift recipient:
+🎄 **Name:** ${receiver.name}
+🎁 **Trade Link:** ${receiver.tradelink}
+🎉 **Interests:** ${interestsString}
 
-                    🎁 Plan your gift with care! It should be approximately **$20 (145 RMB)**, and please keep it within 10% of this price (around $18 to $22).
-                    📅 Send your heartwarming gift to your assigned recipient before December 25.
+🎁 Plan your gift with care! It should be approximately **$20 (145 RMB)**, and please keep it within 10% of this price (around $18 to $22).
+📅 Send your heartwarming gift to your assigned recipient before December 25.
 
-                    Spread joy and warmth this holiday season! 🎅🌟🎁
-                `).catch(console.error);
+Spread joy and warmth this holiday season! 🎅🌟🎁
+`).catch(console.error);
+
 
                 }
 

@@ -27,5 +27,8 @@
     "steam-user": "^5.0.1",
     "steamcommunity": "^3.47.0",
     "toad-scheduler": "^3.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }

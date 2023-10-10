@@ -3,7 +3,11 @@
 [![GitHub forks](https://img.shields.io/github/forks/JHVIW/Secret-Santa-Bot)](https://github.com/JHVIW/Secret-Santa-Bot/network)
 [![GitHub issues](https://img.shields.io/github/issues/JHVIW/Secret-Santa-Bot)](https://github.com/JHVIW/Secret-Santa-Bot/issues)
 
-Welcome to the SteamBot project! This project consists of two main components: `SteamBot.js` and `Bot.js`. `SteamBot.js` handles Steam-related functionality, while `Bot.js` manages interactions within a Discord server. These components work together to create a Secret Santa event in your server. 
+Secret Santa Bot is a festive project designed to bring the joy of gift-giving to your Discord servers! Built with a dual-bot architecture, it integrates with both Discord and Steam platforms to automate the Secret Santa process from start to finish.
+
+- **Automatic Assignments:** Effortlessly pairs participants for Secret Santa, ensuring that no one gets left out and each person receives a gift.
+- **Steam and Discord Integration:** Seamlessly manages gift exchanges through Steam trade offers and Discord interactions, creating a delightful user experience.
+- **Event Management:** Provides tools for admins to oversee the Secret Santa event, track gift exchanges, and ensure that everyone follows the spirit of giving.
 
 ## SteamBot.js
 

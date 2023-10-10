@@ -1,4 +1,7 @@
 # Secret Santa Bot
+[![GitHub stars](https://img.shields.io/github/stars/JHVIW/Secret-Santa-Bot)](https://github.com/JHVIW/Secret-Santa-Bot/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/JHVIW/Secret-Santa-Bot)](https://github.com/JHVIW/Secret-Santa-Bot/network)
+[![GitHub issues](https://img.shields.io/github/issues/JHVIW/Secret-Santa-Bot)](https://github.com/JHVIW/Secret-Santa-Bot/issues)
 
 Welcome to the SteamBot project! This project consists of two main components: `SteamBot.js` and `Bot.js`. `SteamBot.js` handles Steam-related functionality, while `Bot.js` manages interactions within a Discord server. These components work together to create a Secret Santa event in your server. 
 

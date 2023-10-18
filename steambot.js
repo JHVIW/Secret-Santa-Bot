@@ -187,6 +187,8 @@ function sendTrades() {
                         if (recipient && recipient.tradelink) {
                             const trade = manager.createOffer(recipient.tradelink);
 
+                            trade.setMessage('Here is your secret santa gift, enjoy and have a merry Christmas!');
+
                             // Loop through each classID and find the corresponding assetid from the pre-fetched steamData
                             participant.sentItemClassIDs.forEach((classID) => {
                                 const matchingAsset = parsedSteamData.assets.find(asset => asset.classid === classID.toString());

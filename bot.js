@@ -17,6 +17,7 @@ config();
 const prefix = '!';
 
 const participants = {};
+const signedUpUsers = [];
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 
@@ -86,7 +87,7 @@ client.on('messageCreate', async (message) => {
     // Command: !signup
     if (command === 'signup') {
         // Check if the user has already signed up
-        if (participants[message.author.id]) {
+        if (signedUpUsers.includes(message.author.id)) {
             const replyMessage = await message.channel.send(`<@${message.author.id}> You have already signed up for Secret Santa. Your message will be deleted!`);
 
             // Delete the user's message to prevent flooding
@@ -96,10 +97,11 @@ client.on('messageCreate', async (message) => {
                 console.error('Error deleting message:', error);
             }
 
-            // Delete the bot's message after 5 seconds
+
             setTimeout(() => {
                 replyMessage.delete().catch(console.error);
-            }, 5000); // 5000 milliseconds (5 seconds)
+            }, 5000);
+
             return;
         }
 
@@ -108,7 +110,14 @@ client.on('messageCreate', async (message) => {
 
         // Check if the required information is provided
         if (!tradelink || interests.length < 3) {
-            message.channel.send(`<@${message.author.id}> Please provide a valid trade link and 3 interests.`);
+            // Send a message to the user
+            const userMessage = await message.channel.send(`<@${message.author.id}> Please provide a valid trade link and 3 interests.`);
+
+            // Delete the user's message and the bot's message after 5 seconds
+            setTimeout(() => {
+                message.delete().catch(console.error);
+                userMessage.delete().catch(console.error);
+            }, 3000); // 5000 milliseconds (5 seconds)
             return;
         }
 
@@ -159,11 +168,17 @@ client.on('messageCreate', async (message) => {
                     console.log('Participant added and saved to participants.json');
                 });
             });
-
+            signedUpUsers.push(message.author.id);
             await message.delete();
             message.channel.send(`<@${message.author.id}> You have successfully signed up for Secret Santa!`);
         } else {
-            message.channel.send(`<@${message.author.id}> Please provide a valid Steam trade link.`);
+            const userMessage = await message.channel.send(`<@${message.author.id}> Please provide a valid trade link and 3 interests.`);
+            // Delete the user's message and the bot's message after 5 seconds
+            setTimeout(() => {
+                message.delete().catch(console.error);
+                userMessage.delete().catch(console.error);
+            }, 3000); // 5000 milliseconds (5 seconds)
+            return;
         }
     }
 

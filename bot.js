@@ -161,71 +161,13 @@ client.on('messageCreate', async (message) => {
             utils.readParticipantsFile(participantsFilePath, (err, participantsData) => {
                 if (err) return;
 
-                let validAssignments = false;
-
-                while (!validAssignments) {
-                    // Reset the assignments
-                    participantsData.forEach(participant => participant.assigned = null);
-
-                    // Get an array of user IDs
-                    const userIds = participantsData.map(participant => participant.userId);
-                    const shuffledUserIds = utils.shuffleArray(userIds.slice()); // Make a copy of the array and shuffle it
-
-                    // Initialize an array to store the assignments
-                    const assignments = [];
-
-                    // Create a copy of the shuffledUserIds for assigning
-                    const remainingUserIds = shuffledUserIds.slice();
-
-                    // Loop through shuffled user IDs
-                    for (let i = 0; i < shuffledUserIds.length; i++) {
-                        const senderId = shuffledUserIds[i];
-                        const receiverId = utils.findUniqueReceiver(senderId, remainingUserIds);
-
-                        if (!receiverId) {
-                            console.error('Unable to find a unique receiver for:', senderId);
-                            continue;
-                        }
-
-                        // Update the assignment information in participantsData
-                        const senderIndex = participantsData.findIndex(participant => participant.userId === senderId);
-                        participantsData[senderIndex].assigned = receiverId;
-
-                        // Remove the assigned receiver from remainingUserIds
-                        const receiverIndex = remainingUserIds.indexOf(receiverId);
-                        if (receiverIndex > -1) {
-                            remainingUserIds.splice(receiverIndex, 1);
-                        }
-
-                        // Store the assignment information
-                        const assignment = {
-                            senderId: senderId,
-                            receiverId: receiverId
-                        };
-                        assignments.push(assignment);
-                    }
-
-                    // Check if every participant has been assigned a unique person and no participant is assigned twice
-                    const assignedUserIds = participantsData.map(participant => participant.assigned);
-                    const uniqueAssignedUserIds = [...new Set(assignedUserIds)];
-
-                    if (assignedUserIds.length === uniqueAssignedUserIds.length && !uniqueAssignedUserIds.includes(null)) {
-                        // Ensure no participant is assigned more than once
-                        const assignmentCounts = assignedUserIds.reduce((acc, id) => {
-                            acc[id] = (acc[id] || 0) + 1;
-                            return acc;
-                        }, {});
-
-                        if (!Object.values(assignmentCounts).some(count => count > 1)) {
-                            validAssignments = true;
-                        }
-                    }
-                }
+                // Assign participants
+                const assignedParticipantsData = utils.assignParticipants(participantsData);
 
                 // Send a private message to each sender with their recipient's information
-                participantsData.forEach(participant => {
+                assignedParticipantsData.forEach(participant => {
                     const sender = participant;
-                    const receiver = participantsData.find(p => p.userId === participant.assigned);
+                    const receiver = assignedParticipantsData.find(p => p.userId === participant.assigned);
                     const senderUser = message.guild.members.cache.get(sender.userId);
 
                     // Create a string with recipient's interests
@@ -250,7 +192,7 @@ Spread joy and warmth this holiday season! 🎅🌟🎁
                 });
 
                 // Update the assignments in the JSON file
-                utils.writeParticipantsFile(participantsFilePath, participantsData, (err) => {
+                utils.writeParticipantsFile(participantsFilePath, assignedParticipantsData, (err) => {
                     if (err) return;
                     console.log('Assignments updated in participants.json');
                 });

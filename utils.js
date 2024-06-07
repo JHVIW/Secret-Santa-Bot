@@ -64,6 +64,72 @@ function findUniqueReceiver(senderId, remainingUserIds) {
     return receiverId;
 }
 
+// Assign participants to each other
+function assignParticipants(participantsData) {
+    let validAssignments = false;
+
+    while (!validAssignments) {
+        // Reset the assignments
+        participantsData.forEach(participant => participant.assigned = null);
+
+        // Get an array of user IDs
+        const userIds = participantsData.map(participant => participant.userId);
+        const shuffledUserIds = shuffleArray(userIds.slice()); // Make a copy of the array and shuffle it
+
+        // Initialize an array to store the assignments
+        const assignments = [];
+
+        // Create a copy of the shuffledUserIds for assigning
+        const remainingUserIds = shuffledUserIds.slice();
+
+        // Loop through shuffled user IDs
+        for (let i = 0; i < shuffledUserIds.length; i++) {
+            const senderId = shuffledUserIds[i];
+            const receiverId = findUniqueReceiver(senderId, remainingUserIds);
+
+            if (!receiverId) {
+                console.error('Unable to find a unique receiver for:', senderId);
+                continue;
+            }
+
+            // Update the assignment information in participantsData
+            const senderIndex = participantsData.findIndex(participant => participant.userId === senderId);
+            participantsData[senderIndex].assigned = receiverId;
+
+            // Remove the assigned receiver from remainingUserIds
+            const receiverIndex = remainingUserIds.indexOf(receiverId);
+            if (receiverIndex > -1) {
+                remainingUserIds.splice(receiverIndex, 1);
+            }
+
+            // Store the assignment information
+            const assignment = {
+                senderId: senderId,
+                receiverId: receiverId
+            };
+            assignments.push(assignment);
+        }
+
+        // Check if every participant has been assigned a unique person and no participant is assigned twice
+        const assignedUserIds = participantsData.map(participant => participant.assigned);
+        const uniqueAssignedUserIds = [...new Set(assignedUserIds)];
+
+        if (assignedUserIds.length === uniqueAssignedUserIds.length && !uniqueAssignedUserIds.includes(null)) {
+            // Ensure no participant is assigned more than once
+            const assignmentCounts = assignedUserIds.reduce((acc, id) => {
+                acc[id] = (acc[id] || 0) + 1;
+                return acc;
+            }, {});
+
+            if (!Object.values(assignmentCounts).some(count => count > 1)) {
+                validAssignments = true;
+            }
+        }
+    }
+
+    return participantsData;
+}
+
 module.exports = {
     initializeParticipantsFile,
     extractSteamID64,
@@ -71,4 +137,5 @@ module.exports = {
     readParticipantsFile,
     writeParticipantsFile,
     findUniqueReceiver,
+    assignParticipants
 };

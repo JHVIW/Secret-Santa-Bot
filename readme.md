@@ -1,3 +1,4 @@
+
 # Secret Santa Bot
 [![GitHub stars](https://img.shields.io/github/stars/JHVIW/Secret-Santa-Bot)](https://github.com/JHVIW/Secret-Santa-Bot/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/JHVIW/Secret-Santa-Bot)](https://github.com/JHVIW/Secret-Santa-Bot/network)
@@ -46,6 +47,14 @@ Secret Santa Bot is a festive project designed to bring the joy of gift-giving t
 - Handles errors and permissions gracefully.
 - Shuffles participants for Secret Santa assignments.
 - Sends private messages to participants with their assigned recipients' information.
+- Supports checking signups and ensuring all participants are properly registered.
+
+### Newest Functions
+
+- **assignParticipants:** Assigns Secret Santa pairs, ensuring each participant has a unique recipient.
+- **extractSteamID64:** Extracts SteamID64 from a provided trade link.
+- **findUniqueReceiver:** Finds a unique receiver for each sender to ensure no participant is assigned twice.
+- **shuffleArray:** Shuffles an array using the Fisher-Yates algorithm for random assignment.
 
 ## How to Use
 

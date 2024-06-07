@@ -122,6 +122,7 @@ client.on('messageCreate', async (message) => {
                 interests,
                 steamID64: steamID64.toString(),
                 assigned: null,
+                sentItemClassIDs: [], // Initialize sentItemClassIDs as an empty array
             };
 
             // Write the new participant's data to the JSON file
@@ -287,8 +288,11 @@ Spread joy and warmth this holiday season! 🎅🌟🎁
                 return;
             }
 
-            const participantNames = participantsData.map(participant => participant.name);
-            const responseMessage = `Participants who have signed up:\n${participantNames.join('\n')}`;
+            const participantInfo = participantsData.map(participant => {
+                const hasSentItems = participant.sentItemClassIDs && participant.sentItemClassIDs.length > 0;
+                return `${participant.name} - Items Sent: ${hasSentItems ? 'Yes' : 'No'}`;
+            });
+            const responseMessage = `Participants who have signed up:\n${participantInfo.join('\n')}`;
             message.channel.send(responseMessage);
         });
     }

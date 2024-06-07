@@ -1,13 +1,14 @@
 import { config } from 'dotenv';
-import fs from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import Discord from 'discord.js';
 const { Client, Intents } = Discord;
 
+const utils = require('./utils');
+
 const intents = new Intents([
-    Intents.FLAGS.GUILDS,           // Required for basic information about servers
-    Intents.FLAGS.GUILD_MESSAGES,   // Required for message-related events
+    Intents.FLAGS.GUILDS,
+    Intents.FLAGS.GUILD_MESSAGES,
 ]);
 
 const client = new Client({ intents });
@@ -16,7 +17,6 @@ config();
 
 const prefix = '!';
 
-const participants = {};
 const signedUpUsers = [];
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -24,16 +24,8 @@ const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 // Create the participants.json file path using the current directory
 const participantsFilePath = path.join(currentDirectory, 'participants.json');
 
-
-// Function to initialize the JSON file with an empty array
-function initializeParticipantsFile() {
-    fs.writeFileSync(participantsFilePath, '[]', 'utf8');
-    console.log('Initialized participants.json with an empty array.');
-}
-
-// Call the function to initialize the JSON file at the beginning
-initializeParticipantsFile();
-
+// Initialize the JSON file
+utils.initializeParticipantsFile(participantsFilePath);
 
 // Define the ID of the channel where the !signup command should work
 const signupChannelId = '1159537369087750154';
@@ -66,8 +58,6 @@ Example: \`!signup https://steamcommunity.com/tradeoffer/new/?partner=1234567890
     } else {
         console.error('Startup channel not found.');
     }
-
-
 });
 
 // Event: When a message is received
@@ -97,7 +87,6 @@ client.on('messageCreate', async (message) => {
                 console.error('Error deleting message:', error);
             }
 
-
             setTimeout(() => {
                 replyMessage.delete().catch(console.error);
             }, 5000);
@@ -121,20 +110,8 @@ client.on('messageCreate', async (message) => {
             return;
         }
 
-        // Function to extract SteamID64 from a Steam trade link
-        function extractSteamID64(tradeLink) {
-            const match = /partner=(\d+)/.exec(tradeLink);
-            if (match && match[1]) {
-                const partnerId = parseInt(match[1]);
-                if (!isNaN(partnerId)) {
-                    return (BigInt(1) << 56n) | (BigInt(1) << 52n) | (BigInt(1) << 32n) | BigInt(partnerId);
-                }
-            }
-            return null; // Return null if extraction fails
-        }
-
         // Extract SteamID64 from the provided trade link
-        const steamID64 = extractSteamID64(tradelink);
+        const steamID64 = utils.extractSteamID64(tradelink);
 
         if (steamID64) {
             // Create a new participant object
@@ -148,26 +125,19 @@ client.on('messageCreate', async (message) => {
             };
 
             // Write the new participant's data to the JSON file
-            fs.readFile(participantsFilePath, 'utf8', (err, data) => {
-                if (err) {
-                    console.error('Error reading participants.json:', err);
-                    return;
-                }
-
-                const participantsData = JSON.parse(data);
+            utils.readParticipantsFile(participantsFilePath, (err, participantsData) => {
+                if (err) return;
 
                 // Add the new participant to the array
                 participantsData.push(newParticipant);
 
                 // Write the updated data back to the JSON file
-                fs.writeFile(participantsFilePath, JSON.stringify(participantsData), (err) => {
-                    if (err) {
-                        console.error('Error writing participants.json:', err);
-                        return;
-                    }
+                utils.writeParticipantsFile(participantsFilePath, participantsData, (err) => {
+                    if (err) return;
                     console.log('Participant added and saved to participants.json');
                 });
             });
+
             signedUpUsers.push(message.author.id);
             await message.delete();
             message.channel.send(`<@${message.author.id}> You have successfully signed up for Secret Santa!`);
@@ -182,40 +152,80 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // Clears channel
-
-
+    // Command: !rollsantabot
     else if (command === 'rollsantabot') {
         // Check if the message sender is an administrator
         if (message.member.permissions.has('ADMINISTRATOR')) {
             // Get the participants from participants.json
-            fs.readFile(participantsFilePath, 'utf8', (err, data) => {
-                if (err) {
-                    console.error('Error reading participants.json:', err);
-                    return;
-                }
+            utils.readParticipantsFile(participantsFilePath, (err, participantsData) => {
+                if (err) return;
 
-                const participantsData = JSON.parse(data);
+                let validAssignments = false;
 
-                // Get an array of user IDs and shuffle them
-                const userIds = participantsData.map(participant => participant.userId);
-                const shuffledUserIds = shuffleArray(userIds);
+                while (!validAssignments) {
+                    // Reset the assignments
+                    participantsData.forEach(participant => participant.assigned = null);
 
-                // Initialize an array to store the assignments
-                const assignments = [];
+                    // Get an array of user IDs
+                    const userIds = participantsData.map(participant => participant.userId);
+                    const shuffledUserIds = utils.shuffleArray(userIds.slice()); // Make a copy of the array and shuffle it
 
-                // Loop through shuffled user IDs
-                for (let i = 0; i < shuffledUserIds.length; i++) {
-                    const senderId = shuffledUserIds[i];
-                    // Find a recipient who is not the sender
-                    let receiverId = senderId;
-                    while (receiverId === senderId) {
-                        receiverId = shuffledUserIds[Math.floor(Math.random() * shuffledUserIds.length)];
+                    // Initialize an array to store the assignments
+                    const assignments = [];
+
+                    // Create a copy of the shuffledUserIds for assigning
+                    const remainingUserIds = shuffledUserIds.slice();
+
+                    // Loop through shuffled user IDs
+                    for (let i = 0; i < shuffledUserIds.length; i++) {
+                        const senderId = shuffledUserIds[i];
+                        const receiverId = utils.findUniqueReceiver(senderId, remainingUserIds);
+
+                        if (!receiverId) {
+                            console.error('Unable to find a unique receiver for:', senderId);
+                            continue;
+                        }
+
+                        // Update the assignment information in participantsData
+                        const senderIndex = participantsData.findIndex(participant => participant.userId === senderId);
+                        participantsData[senderIndex].assigned = receiverId;
+
+                        // Remove the assigned receiver from remainingUserIds
+                        const receiverIndex = remainingUserIds.indexOf(receiverId);
+                        if (receiverIndex > -1) {
+                            remainingUserIds.splice(receiverIndex, 1);
+                        }
+
+                        // Store the assignment information
+                        const assignment = {
+                            senderId: senderId,
+                            receiverId: receiverId
+                        };
+                        assignments.push(assignment);
                     }
 
-                    // Get recipient's information and sender's user object
-                    const receiver = participantsData.find(participant => participant.userId === receiverId);
-                    const senderUser = message.guild.members.cache.get(senderId);
+                    // Check if every participant has been assigned a unique person and no participant is assigned twice
+                    const assignedUserIds = participantsData.map(participant => participant.assigned);
+                    const uniqueAssignedUserIds = [...new Set(assignedUserIds)];
+
+                    if (assignedUserIds.length === uniqueAssignedUserIds.length && !uniqueAssignedUserIds.includes(null)) {
+                        // Ensure no participant is assigned more than once
+                        const assignmentCounts = assignedUserIds.reduce((acc, id) => {
+                            acc[id] = (acc[id] || 0) + 1;
+                            return acc;
+                        }, {});
+
+                        if (!Object.values(assignmentCounts).some(count => count > 1)) {
+                            validAssignments = true;
+                        }
+                    }
+                }
+
+                // Send a private message to each sender with their recipient's information
+                participantsData.forEach(participant => {
+                    const sender = participant;
+                    const receiver = participantsData.find(p => p.userId === participant.assigned);
+                    const senderUser = message.guild.members.cache.get(sender.userId);
 
                     // Create a string with recipient's interests
                     const interestsString = receiver.interests.length > 0
@@ -228,33 +238,20 @@ client.on('messageCreate', async (message) => {
 
 Your Secret Santa gift recipient:
 🎄 **Name:** ${receiver.name}
-🎁 **Trade Link: <https://steamcommunity.com/tradeoffer/new/?partner=1184358194&token=l0THxBL1>**
+🎁 **Trade Link: <${receiver.tradelink}>**
 🎉 **Interests:** ${interestsString}
 
 🎁 Plan your gift with care! It should be approximately **$20 (145 RMB)**, and please keep it within 10% of this price (around $18 to $22).
 📅 Send your heartwarming gift to the bot before December 17th.
 
 Spread joy and warmth this holiday season! 🎅🌟🎁
-    `).catch(console.error);
-
-                    // Update the assignment information in participantsData
-                    const senderIndex = participantsData.findIndex(participant => participant.userId === senderId);
-                    participantsData[senderIndex].assigned = receiverId;
-
-                    // Store the assignment information
-                    const assignment = {
-                        receiverId: receiverId,
-                    };
-                    assignments.push(assignment);
-                }
+                    `).catch(console.error);
+                });
 
                 // Update the assignments in the JSON file
-                fs.writeFile(participantsFilePath, JSON.stringify(participantsData, null, 4), (err) => {
-                    if (err) {
-                        console.error('Error writing assignments to participants.json:', err);
-                    } else {
-                        console.log('Assignments updated in participants.json');
-                    }
+                utils.writeParticipantsFile(participantsFilePath, participantsData, (err) => {
+                    if (err) return;
+                    console.log('Assignments updated in participants.json');
                 });
 
                 // Notify in the channel that pairs have been sent
@@ -265,19 +262,36 @@ Spread joy and warmth this holiday season! 🎅🌟🎁
         }
     }
 
+    // Command: !senditemsforsecretsanta
+    else if (command === 'senditemsforsecretsanta') {
+        utils.readParticipantsFile(participantsFilePath, (err, participantsData) => {
+            if (err) return;
 
-
-
-});
-
-// Function to shuffle an array using Fisher-Yates algorithm
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
+            // Trigger the trade sending process by calling the Steam bot's sendTrades function
+            const sendTrades = require('./steambot').sendTrades;
+            sendTrades();
+            message.channel.send('All trades are being sent!');
+        });
     }
-    return array;
-}
 
+    // Command: !checksignups
+    else if (command === 'checksignups') {
+        utils.readParticipantsFile(participantsFilePath, (err, participantsData) => {
+            if (err) {
+                message.channel.send('Error reading participants file.');
+                return;
+            }
+
+            if (participantsData.length === 0) {
+                message.channel.send('No participants have signed up yet.');
+                return;
+            }
+
+            const participantNames = participantsData.map(participant => participant.name);
+            const responseMessage = `Participants who have signed up:\n${participantNames.join('\n')}`;
+            message.channel.send(responseMessage);
+        });
+    }
+});
 
 client.login(process.env.DISCORD_TOKEN);

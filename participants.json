@@ -1,32 +1,74 @@
 [
-    {
-      "userId": "143373549338361856",
-      "name": "saltenator",
-      "tradelink": "https://steamcommunity.com/tradeoffer/new/?partner=325176772&token=DmiLKZ6K",
-      "interests": [
-        "1",
-        "2",
-        "3"
-      ],
-      "steamID64": "76561198285442500",
-      "assigned": "290404168399585280",
-      "sentItemClassIDs": [
-        "310776509"
-      ]
-    },
-    {
-      "userId": "290404168399585280",
-      "name": "sidcovery",
-      "tradelink": "https://steamcommunity.com/tradeoffer/new/?partner=341856898&token=L-uVRNVp",
-      "interests": [
-        "55",
-        "2",
-        "2"
-      ],
-      "steamID64": "76561198302122626",
-      "assigned": "143373549338361856",
-      "sentItemClassIDs": [
-        "3035572174"
-      ]
-    }
-  ]
+  {
+    "userId": "123456789012345678",
+    "name": "UserOne",
+    "tradelink": "https://steamcommunity.com/tradeoffer/new/?partner=1234567890",
+    "interests": [
+      "Video Games",
+      "Board Games",
+      "Books"
+    ],
+    "steamID64": "76561198299901234",
+    "assigned": null
+  },
+  {
+    "userId": "234567890123456789",
+    "name": "UserTwo",
+    "tradelink": "https://steamcommunity.com/tradeoffer/new/?partner=2345678901",
+    "interests": [
+      "Movies",
+      "Music",
+      "Art"
+    ],
+    "steamID64": "76561198299905678",
+    "assigned": null
+  },
+  {
+    "userId": "345678901234567890",
+    "name": "UserThree",
+    "tradelink": "https://steamcommunity.com/tradeoffer/new/?partner=3456789012",
+    "interests": [
+      "Sports",
+      "Travel",
+      "Photography"
+    ],
+    "steamID64": "76561198299903456",
+    "assigned": null
+  },
+  {
+    "userId": "456789012345678901",
+    "name": "UserFour",
+    "tradelink": "https://steamcommunity.com/tradeoffer/new/?partner=4567890123",
+    "interests": [
+      "Technology",
+      "Gaming",
+      "Cooking"
+    ],
+    "steamID64": "76561198299907890",
+    "assigned": null
+  },
+  {
+    "userId": "567890123456789012",
+    "name": "UserFive",
+    "tradelink": "https://steamcommunity.com/tradeoffer/new/?partner=5678901234",
+    "interests": [
+      "Fitness",
+      "Nature",
+      "Reading"
+    ],
+    "steamID64": "76561198299901235",
+    "assigned": null
+  },
+  {
+    "userId": "678901234567890123",
+    "name": "UserSix",
+    "tradelink": "https://steamcommunity.com/tradeoffer/new/?partner=6789012345",
+    "interests": [
+      "Programming",
+      "Science",
+      "History"
+    ],
+    "steamID64": "76561198299906789",
+    "assigned": null
+  }
+]

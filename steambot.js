@@ -53,6 +53,9 @@ client.on('ready', () => {
 \`!senditemsforsecretsanta\`
 - Also triggers the trade sending process (same as bot.js command)
 
+\`!code\`
+- Generates and displays the current 2FA code for the Steam account
+
 **How it works:**
 1. Users sign up using \`!signup\` in the signup channel
 2. Admin runs \`!rollsantabot\` to assign pairs
@@ -66,10 +69,27 @@ client.on('ready', () => {
     }
 });
 
-client.on('message', (message) => {
+client.on('messageCreate', (message) => {
+    // Ignore messages from bots
+    if (message.author.bot) return;
+
     if (message.content === '!senditemsforsecretsanta') {
         // Trigger the trade sending process immediately
         sendTrades();
+    } else if (message.content === '!code') {
+        // Generate and send 2FA code
+        try {
+            SteamTotp.getTimeOffset((err, offset, latency) => {
+                if (err) {
+                    message.reply('Error generating 2FA code: ' + err.message);
+                    return;
+                }
+                const code = SteamTotp.getAuthCode(sharedSecret, offset);
+                message.reply(`🔐 **2FA Code:** \`${code}\``);
+            });
+        } catch (error) {
+            message.reply('Error generating 2FA code: ' + error.message);
+        }
     }
 });
 

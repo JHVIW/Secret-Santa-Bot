@@ -110,17 +110,19 @@ client.on('messageCreate', async (message) => {
     // Ignore messages from bots
     if (message.author.bot) return;
 
-    // Check if the message is sent in the specified channel
-    if (message.channel.id !== signupChannelId) {
-        return; // Ignore messages from other channels
-    }
+    // Check if message starts with prefix
+    if (!message.content.startsWith(prefix)) return;
 
     // Split the message content into command and arguments
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    // Command: !signup
+    // Command: !signup (only works in signup channel)
     if (command === 'signup') {
+        // Check if the message is sent in the specified channel
+        if (message.channel.id !== signupChannelId) {
+            return; // Ignore signup command from other channels
+        }
         // Check if the user has already signed up
         if (signedUpUsers.includes(message.author.id)) {
             const replyMessage = await message.channel.send(`<@${message.author.id}> You have already signed up for Secret Santa. Your message will be deleted!`);

@@ -78,20 +78,10 @@ client.on('messageCreate', (message) => {
         sendTrades();
     } else if (message.content === '!code') {
         // Generate and send 2FA code
-        try {
-            SteamTotp.getTimeOffset((err, offset, latency) => {
-                if (err) {
-                    message.reply('Error generating 2FA code: ' + err.message);
-                    return;
-                }
-                const code = SteamTotp.getAuthCode(identitySecret, offset);
+                const code = SteamTotp.getAuthCode(sharedSecret);
                 message.reply(`🔐 **2FA Code:** \`${code}\``);
-            });
-        } catch (error) {
-            message.reply('Error generating 2FA code: ' + error.message);
-        }
-    }
-});
+            }});
+            
 
 client.login(process.env.DISCORD_TOKEN);
 

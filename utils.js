@@ -53,79 +53,128 @@ function writeParticipantsFile(participantsFilePath, participantsData, callback)
     });
 }
 
-// Find a unique receiver for each sender
-function findUniqueReceiver(senderId, remainingUserIds) {
-    let receiverId = senderId;
-    const remainingReceivers = remainingUserIds.filter(id => id !== senderId);
-    if (remainingReceivers.length === 0) {
-        return null;
-    }
-    receiverId = remainingReceivers[Math.floor(Math.random() * remainingReceivers.length)];
-    return receiverId;
-}
-
-// Assign participants to each other
+// Assign participants to each other using a circular shift approach
+// This ensures every person gets a unique recipient and creates a circular chain
+// 100% guarantee that no one is assigned twice
 function assignParticipants(participantsData) {
-    let validAssignments = false;
+    // Check if we have at least 2 participants
+    if (participantsData.length < 2) {
+        console.error('Need at least 2 participants to assign pairs');
+        return participantsData;
+    }
 
-    while (!validAssignments) {
-        // Reset the assignments
-        participantsData.forEach(participant => participant.assigned = null);
+    // Reset all assignments
+    participantsData.forEach(participant => participant.assigned = null);
 
-        // Get an array of user IDs
-        const userIds = participantsData.map(participant => participant.userId);
-        const shuffledUserIds = shuffleArray(userIds.slice()); // Make a copy of the array and shuffle it
+    // Get an array of user IDs
+    const userIds = participantsData.map(participant => participant.userId);
+    
+    // Remove any duplicate user IDs (safety check)
+    const uniqueUserIds = [...new Set(userIds)];
+    if (uniqueUserIds.length !== userIds.length) {
+        console.error('Warning: Duplicate user IDs detected. Removing duplicates.');
+    }
+    
+    // Shuffle the array to randomize the assignments
+    const shuffledUserIds = shuffleArray(uniqueUserIds.slice());
 
-        // Initialize an array to store the assignments
-        const assignments = [];
+    // Track which receivers have already been assigned (Set for O(1) lookup)
+    const assignedReceivers = new Set();
+    
+    // Track assignments as we make them for validation
+    const assignmentMap = new Map();
 
-        // Create a copy of the shuffledUserIds for assigning
-        const remainingUserIds = shuffledUserIds.slice();
-
-        // Loop through shuffled user IDs
-        for (let i = 0; i < shuffledUserIds.length; i++) {
-            const senderId = shuffledUserIds[i];
-            const receiverId = findUniqueReceiver(senderId, remainingUserIds);
-
-            if (!receiverId) {
-                console.error('Unable to find a unique receiver for:', senderId);
-                continue;
-            }
-
-            // Update the assignment information in participantsData
-            const senderIndex = participantsData.findIndex(participant => participant.userId === senderId);
-            participantsData[senderIndex].assigned = receiverId;
-
-            // Remove the assigned receiver from remainingUserIds
-            const receiverIndex = remainingUserIds.indexOf(receiverId);
-            if (receiverIndex > -1) {
-                remainingUserIds.splice(receiverIndex, 1);
-            }
-
-            // Store the assignment information
-            const assignment = {
-                senderId: senderId,
-                receiverId: receiverId
-            };
-            assignments.push(assignment);
+    // Create a circular assignment: person[i] gives to person[(i+1) % n]
+    // This mathematically guarantees:
+    // 1. Everyone gets a unique recipient (each index is unique, modulo creates perfect distribution)
+    // 2. No one gets themselves (circular shift means i+1 can never equal i when n > 1)
+    // 3. No one is assigned twice (each receiver appears exactly once in the circular chain)
+    // 4. Creates a complete circular chain (A -> B -> C -> ... -> A)
+    for (let i = 0; i < shuffledUserIds.length; i++) {
+        const senderId = shuffledUserIds[i];
+        // Assign to the next person in the shuffled list (circular)
+        const receiverId = shuffledUserIds[(i + 1) % shuffledUserIds.length];
+        
+        // VALIDATION: Ensure sender is not assigning to themselves
+        if (senderId === receiverId) {
+            console.error(`ERROR: Circular assignment would assign ${senderId} to themselves. This should never happen with n > 1.`);
+            throw new Error('Invalid assignment: sender and receiver are the same');
         }
-
-        // Check if every participant has been assigned a unique person and no participant is assigned twice
-        const assignedUserIds = participantsData.map(participant => participant.assigned);
-        const uniqueAssignedUserIds = [...new Set(assignedUserIds)];
-
-        if (assignedUserIds.length === uniqueAssignedUserIds.length && !uniqueAssignedUserIds.includes(null)) {
-            // Ensure no participant is assigned more than once
-            const assignmentCounts = assignedUserIds.reduce((acc, id) => {
-                acc[id] = (acc[id] || 0) + 1;
-                return acc;
-            }, {});
-
-            if (!Object.values(assignmentCounts).some(count => count > 1)) {
-                validAssignments = true;
-            }
+        
+        // VALIDATION: Ensure this receiver hasn't already been assigned
+        if (assignedReceivers.has(receiverId)) {
+            console.error(`ERROR: Receiver ${receiverId} has already been assigned!`);
+            console.error('Current assignments:', Array.from(assignedReceivers));
+            throw new Error(`Duplicate assignment detected: ${receiverId} is assigned twice`);
+        }
+        
+        // VALIDATION: Ensure this sender hasn't already been processed
+        if (assignmentMap.has(senderId)) {
+            console.error(`ERROR: Sender ${senderId} has already been processed!`);
+            throw new Error(`Duplicate sender detected: ${senderId} is processed twice`);
+        }
+        
+        // Mark this receiver as assigned
+        assignedReceivers.add(receiverId);
+        assignmentMap.set(senderId, receiverId);
+        
+        // Find the sender in participantsData and assign the receiver
+        const senderIndex = participantsData.findIndex(participant => participant.userId === senderId);
+        if (senderIndex !== -1) {
+            participantsData[senderIndex].assigned = receiverId;
+        } else {
+            console.error(`ERROR: Could not find participant with userId: ${senderId}`);
+            throw new Error(`Participant not found: ${senderId}`);
         }
     }
+
+    // FINAL VALIDATION: Comprehensive check
+    const assignedUserIds = participantsData.map(participant => participant.assigned);
+    const uniqueAssignedUserIds = [...new Set(assignedUserIds)];
+    
+    // Check 1: All participants have been assigned (no nulls)
+    if (assignedUserIds.includes(null)) {
+        const nullIndices = assignedUserIds
+            .map((id, idx) => id === null ? idx : -1)
+            .filter(idx => idx !== -1);
+        console.error(`ERROR: ${nullIndices.length} participant(s) have null assignment:`, nullIndices);
+        throw new Error('Some participants have null assignments');
+    }
+    
+    // Check 2: All assigned IDs are unique (no duplicates)
+    if (assignedUserIds.length !== uniqueAssignedUserIds.length) {
+        const duplicates = assignedUserIds.filter((id, idx) => assignedUserIds.indexOf(id) !== idx);
+        console.error(`ERROR: Duplicate assignments found:`, duplicates);
+        throw new Error('Duplicate assignments detected in final validation');
+    }
+    
+    // Check 3: Number of assignments matches number of participants
+    if (assignedUserIds.length !== participantsData.length) {
+        console.error(`ERROR: Assignment count mismatch. Expected ${participantsData.length}, got ${assignedUserIds.length}`);
+        throw new Error('Assignment count mismatch');
+    }
+    
+    // Check 4: No one is assigned to themselves
+    const selfAssignments = participantsData.filter(p => p.userId === p.assigned);
+    if (selfAssignments.length > 0) {
+        console.error(`ERROR: ${selfAssignments.length} participant(s) assigned to themselves:`, 
+            selfAssignments.map(p => p.userId));
+        throw new Error('Self-assignments detected');
+    }
+    
+    // Check 5: All receivers exist in participants list
+    const allUserIds = new Set(participantsData.map(p => p.userId));
+    const invalidReceivers = assignedUserIds.filter(id => !allUserIds.has(id));
+    if (invalidReceivers.length > 0) {
+        console.error(`ERROR: Invalid receivers found:`, invalidReceivers);
+        throw new Error('Invalid receivers detected');
+    }
+    
+    // All validations passed
+    console.log(`✅ Successfully assigned ${participantsData.length} participants with 100% unique assignments`);
+    console.log(`✅ Assignment chain: ${shuffledUserIds.map((id, i) => 
+        `${id} -> ${shuffledUserIds[(i + 1) % shuffledUserIds.length]}`
+    ).join(', ')}`);
 
     return participantsData;
 }
@@ -136,6 +185,5 @@ export {
     shuffleArray,
     readParticipantsFile,
     writeParticipantsFile,
-    findUniqueReceiver,
     assignParticipants
 };

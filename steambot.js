@@ -163,7 +163,7 @@ if (isMainModule && steam_client) {
     // Get the Steam ID of the sender
     const senderSteamID = offer.partner.getSteamID64();
 
-    // Extract item information including market hash name, pattern, and float
+    // Extract item information including market hash name, pattern, float, and instanceid
     // These properties remain constant and uniquely identify items
     const receivedItems = offer.itemsToReceive.map(item => {
         const itemInfo = {
@@ -172,14 +172,22 @@ if (isMainModule && steam_client) {
             contextid: item.contextid || 2
         };
         
+        // Get instanceid (important for CS:GO items with same classid but different properties)
+        if (item.instanceid !== undefined) {
+            itemInfo.instanceid = item.instanceid;
+        }
+        
         // Get market hash name (item name with wear condition)
         if (item.market_hash_name) {
             itemInfo.market_hash_name = item.market_hash_name;
         }
         
         // Get pattern index (for items with variations like patterns, stickers)
+        // Also check for paintseed which is sometimes used for pattern
         if (item.pattern_index !== undefined) {
             itemInfo.pattern_index = item.pattern_index;
+        } else if (item.paintseed !== undefined) {
+            itemInfo.pattern_index = item.paintseed;
         }
         
         // Get float value (wear value, unique per item)
@@ -305,14 +313,67 @@ export function sendTrades() {
                             // Track which asset IDs we've already used to avoid duplicates
                             const usedAssetIDs = new Set();
                             
-                            // Create a map of classid to descriptions for faster lookup
+                            // Create a map of classid+instanceid to descriptions for faster lookup
+                            // Use both classid and instanceid as key since CS:GO items can have same classid but different instanceid
                             const descriptionsMap = {};
                             if (parsedSteamData.descriptions) {
                                 parsedSteamData.descriptions.forEach(desc => {
                                     if (desc.classid) {
-                                        descriptionsMap[desc.classid] = desc;
+                                        const instanceid = desc.instanceid || '0';
+                                        const key = `${desc.classid}_${instanceid}`;
+                                        descriptionsMap[key] = desc;
                                     }
                                 });
+                            }
+                            
+                            // Helper function to extract float value from description
+                            // Float can be in descriptions array or as direct property
+                            function getFloatValue(description) {
+                                // First check if float_value is directly on the description
+                                if (description.float_value !== undefined) {
+                                    return parseFloat(description.float_value);
+                                }
+                                
+                                // Check nested descriptions array (Steam API format)
+                                if (description.descriptions && Array.isArray(description.descriptions)) {
+                                    for (const desc of description.descriptions) {
+                                        // Look for type "float" or check if value contains float pattern
+                                        if (desc.type === 'float' && desc.value) {
+                                            const floatVal = parseFloat(desc.value);
+                                            if (!isNaN(floatVal) && floatVal >= 0 && floatVal <= 1) {
+                                                return floatVal;
+                                            }
+                                        }
+                                        // Also try to parse any numeric value that looks like a float
+                                        if (desc.value && typeof desc.value === 'string') {
+                                            // Match float pattern (0.0 to 1.0)
+                                            const floatMatch = desc.value.match(/^([\d.]+)$/);
+                                            if (floatMatch) {
+                                                const floatVal = parseFloat(floatMatch[1]);
+                                                if (!isNaN(floatVal) && floatVal >= 0 && floatVal <= 1) {
+                                                    return floatVal;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                return undefined;
+                            }
+                            
+                            // Helper function to extract pattern index from description
+                            // Pattern can be pattern_index, paintseed, or paintindex
+                            function getPatternIndex(description) {
+                                if (description.pattern_index !== undefined) {
+                                    return description.pattern_index;
+                                }
+                                if (description.paintseed !== undefined) {
+                                    return description.paintseed;
+                                }
+                                if (description.paintindex !== undefined) {
+                                    return description.paintindex;
+                                }
+                                return undefined;
                             }
                             
                             // Loop through each item
@@ -324,7 +385,7 @@ export function sendTrades() {
                                 
                                 let assetToUse = null;
                                 
-                                // Try to find matching asset using ALL available properties (market hash name, pattern, and float)
+                                // Try to find matching asset using ALL available properties (instanceid, market hash name, pattern, and float)
                                 // All stored properties must match for a successful match
                                 assetToUse = parsedSteamData.assets.find(asset => {
                                     // Skip if already used
@@ -339,11 +400,43 @@ export function sendTrades() {
                                         return false;
                                     }
                                     
-                                    // Get the description for this asset
-                                    const description = descriptionsMap[asset.classid];
-                                    if (!description) {
-                                        // If no description available, can't match on properties - skip
-                                        return false;
+                                    // Get instanceid for matching (default to '0' if not present)
+                                    const assetInstanceId = asset.instanceid || '0';
+                                    
+                                    // Match instanceid if stored (important for CS:GO items)
+                                    if (item.instanceid !== undefined) {
+                                        const itemInstanceId = item.instanceid.toString();
+                                        if (assetInstanceId !== itemInstanceId) {
+                                            return false;
+                                        }
+                                    }
+                                    
+                                    // Get the description for this asset using classid and instanceid
+                                    const descKey = `${asset.classid}_${assetInstanceId}`;
+                                    let desc = descriptionsMap[descKey];
+                                    
+                                    // If no description found with instanceid, try with instanceid '0' as fallback
+                                    if (!desc && descriptionsMap[`${asset.classid}_0`]) {
+                                        desc = descriptionsMap[`${asset.classid}_0`];
+                                    }
+                                    
+                                    // Also try to find description by matching classid only (last resort)
+                                    if (!desc) {
+                                        const matchingDesc = parsedSteamData.descriptions?.find(d => 
+                                            d.classid === asset.classid.toString()
+                                        );
+                                        if (matchingDesc) {
+                                            desc = matchingDesc;
+                                        }
+                                    }
+                                    
+                                    if (!desc) {
+                                        // If no description available and we have stored properties, skip
+                                        if (item.market_hash_name || item.pattern_index !== undefined || item.float_value !== undefined) {
+                                            return false;
+                                        }
+                                        // No stored properties and no description, match on classid/instanceid only
+                                        return true;
                                     }
                                     
                                     // Check if we have any stored properties to match on
@@ -352,7 +445,7 @@ export function sendTrades() {
                                                                item.float_value !== undefined;
                                     
                                     if (!hasStoredProperties) {
-                                        // No stored properties, fallback to class ID match only
+                                        // No stored properties, match on classid/instanceid only
                                         return true;
                                     }
                                     
@@ -361,27 +454,29 @@ export function sendTrades() {
                                     
                                     // Match market hash name (if stored, must match)
                                     if (item.market_hash_name) {
-                                        if (!description.market_hash_name || 
-                                            description.market_hash_name !== item.market_hash_name) {
+                                        if (!desc.market_hash_name || 
+                                            desc.market_hash_name !== item.market_hash_name) {
                                             matches = false;
                                         }
                                     }
                                     
                                     // Match pattern index (if stored, must match)
                                     if (item.pattern_index !== undefined) {
-                                        if (description.pattern_index === undefined || 
-                                            description.pattern_index !== item.pattern_index) {
+                                        const descPatternIndex = getPatternIndex(desc);
+                                        if (descPatternIndex === undefined || 
+                                            descPatternIndex !== item.pattern_index) {
                                             matches = false;
                                         }
                                     }
                                     
                                     // Match float value (if stored, must match with tolerance)
                                     if (item.float_value !== undefined) {
-                                        if (description.float_value === undefined) {
+                                        const descFloatValue = getFloatValue(desc);
+                                        if (descFloatValue === undefined) {
                                             matches = false;
                                         } else {
                                             const tolerance = 0.000001;
-                                            if (Math.abs(description.float_value - item.float_value) > tolerance) {
+                                            if (Math.abs(descFloatValue - item.float_value) > tolerance) {
                                                 matches = false;
                                             }
                                         }
@@ -403,11 +498,23 @@ export function sendTrades() {
                                     itemsAdded++;
                                     
                                     const itemName = item.market_hash_name || item.name || `Class ID: ${item.classid}`;
-                                    console.log(`Added item to trade: ${itemName}`);
+                                    const matchedProperties = [];
+                                    if (item.market_hash_name) matchedProperties.push(`name: ${item.market_hash_name}`);
+                                    if (item.instanceid !== undefined) matchedProperties.push(`instanceid: ${item.instanceid}`);
+                                    if (item.pattern_index !== undefined) matchedProperties.push(`pattern: ${item.pattern_index}`);
+                                    if (item.float_value !== undefined) matchedProperties.push(`float: ${item.float_value}`);
+                                    
+                                    console.log(`✅ Added item to trade: ${itemName}${matchedProperties.length > 0 ? ` (matched on: ${matchedProperties.join(', ')})` : ''}`);
                                 } else {
                                     const itemName = item.market_hash_name || item.name || `Class ID: ${item.classid}`;
-                                    console.error(`Error: Could not find matching item in inventory - ${itemName}`);
-                                    sendLogToDiscord(`⚠️ Could not find item in inventory - ${itemName}`);
+                                    const storedProperties = [];
+                                    if (item.market_hash_name) storedProperties.push(`name: ${item.market_hash_name}`);
+                                    if (item.instanceid !== undefined) storedProperties.push(`instanceid: ${item.instanceid}`);
+                                    if (item.pattern_index !== undefined) storedProperties.push(`pattern: ${item.pattern_index}`);
+                                    if (item.float_value !== undefined) storedProperties.push(`float: ${item.float_value}`);
+                                    
+                                    console.error(`❌ Could not find matching item in inventory - ${itemName}${storedProperties.length > 0 ? ` (searching for: ${storedProperties.join(', ')})` : ''}`);
+                                    sendLogToDiscord(`⚠️ Could not find item in inventory - ${itemName}${storedProperties.length > 0 ? ` (searching for: ${storedProperties.join(', ')})` : ''}`);
                                 }
                             });
 

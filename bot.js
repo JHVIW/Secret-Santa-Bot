@@ -207,24 +207,63 @@ client.on('messageCreate', async (message) => {
         if (message.member.permissions.has('ADMINISTRATOR')) {
             // Get the participants from participants.json
             utils.readParticipantsFile(participantsFilePath, (err, participantsData) => {
-                if (err) return;
+                if (err) {
+                    message.channel.send('❌ Error reading participants file.');
+                    console.error('Error reading participants file:', err);
+                    return;
+                }
 
-                // Assign participants
-                const assignedParticipantsData = utils.assignParticipants(participantsData);
+                // Check if there are enough participants
+                if (participantsData.length < 2) {
+                    message.channel.send('❌ Need at least 2 participants to assign pairs.');
+                    return;
+                }
 
-                // Send a private message to each sender with their recipient's information
-                assignedParticipantsData.forEach(participant => {
-                    const sender = participant;
-                    const receiver = assignedParticipantsData.find(p => p.userId === participant.assigned);
-                    const senderUser = message.guild.members.cache.get(sender.userId);
+                try {
+                    // Assign participants (this function now throws errors if validation fails)
+                    const assignedParticipantsData = utils.assignParticipants(participantsData);
 
-                    // Create a string with recipient's interests
-                    const interestsString = receiver.interests.length > 0
-                        ? `${receiver.interests.join(', ')}`
-                        : 'No interests provided.';
+                    // Verify assignments before proceeding
+                    const assignedCount = assignedParticipantsData.filter(p => p.assigned !== null).length;
+                    if (assignedCount !== participantsData.length) {
+                        throw new Error(`Assignment incomplete: ${assignedCount}/${participantsData.length} participants assigned`);
+                    }
 
-                    // Send a private message to the sender with recipient's information
-                    senderUser.send(`
+                    // Check for duplicates
+                    const assignedUserIds = assignedParticipantsData.map(p => p.assigned);
+                    const uniqueAssignedUserIds = [...new Set(assignedUserIds)];
+                    if (assignedUserIds.length !== uniqueAssignedUserIds.length) {
+                        throw new Error('Duplicate assignments detected after assignment');
+                    }
+
+                    // Send a private message to each sender with their recipient's information
+                    let dmSuccessCount = 0;
+                    let dmErrorCount = 0;
+
+                    assignedParticipantsData.forEach(participant => {
+                        const sender = participant;
+                        const receiver = assignedParticipantsData.find(p => p.userId === participant.assigned);
+                        
+                        if (!receiver) {
+                            console.error(`ERROR: Could not find receiver for sender ${sender.userId}`);
+                            dmErrorCount++;
+                            return;
+                        }
+
+                        const senderUser = message.guild.members.cache.get(sender.userId);
+                        if (!senderUser) {
+                            console.error(`ERROR: Could not find Discord user for ${sender.userId}`);
+                            dmErrorCount++;
+                            return;
+                        }
+
+                        // Create a string with recipient's interests
+                        const interestsString = receiver.interests && receiver.interests.length > 0
+                            ? `${receiver.interests.join(', ')}`
+                            : 'No interests provided.';
+
+                        // Send a private message to the sender with recipient's information
+                        senderUser.send(`
 🎅🎁🌟 **Ho ho ho!** 🌟🎁🎅
 
 Your Secret Santa gift recipient:
@@ -233,20 +272,37 @@ Your Secret Santa gift recipient:
 🎉 **Interests:** ${interestsString}
 
 🎁 Plan your gift with care! It should be approximately **$20 (145 RMB)**, and please keep it within 10% of this price (around $18 to $22).
-📅 Send your heartwarming gift to the bot before December 17th.
+📅 Send your heartwarming gift to the bot before December 17th. But not before December 5th because the bot is on tradehold and needs a small amount of testing afterwards.
 
 Spread joy and warmth this holiday season! 🎅🌟🎁
-                    `).catch(console.error);
-                });
+                        `).then(() => {
+                            dmSuccessCount++;
+                        }).catch((dmErr) => {
+                            console.error(`Error sending DM to ${sender.name}:`, dmErr);
+                            dmErrorCount++;
+                        });
+                    });
 
-                // Update the assignments in the JSON file
-                utils.writeParticipantsFile(participantsFilePath, assignedParticipantsData, (err) => {
-                    if (err) return;
-                    console.log('Assignments updated in participants.json');
-                });
+                    // Update the assignments in the JSON file
+                    utils.writeParticipantsFile(participantsFilePath, assignedParticipantsData, (err) => {
+                        if (err) {
+                            message.channel.send('❌ Error saving assignments to file.');
+                            console.error('Error writing participants file:', err);
+                            return;
+                        }
+                        console.log('✅ Assignments updated in participants.json');
+                        
+                        // Notify in the channel that pairs have been sent
+                        const successMessage = `✅ Secret Santa pairs have been assigned and updated! ` +
+                            `(${dmSuccessCount} DMs sent${dmErrorCount > 0 ? `, ${dmErrorCount} failed` : ''})`;
+                        message.channel.send(successMessage);
+                    });
 
-                // Notify in the channel that pairs have been sent
-                message.channel.send('Secret Santa pairs have been assigned and updated!');
+                } catch (error) {
+                    console.error('Error assigning participants:', error);
+                    message.channel.send(`❌ Error assigning participants: ${error.message}\n` +
+                        `Please check the console for details.`);
+                }
             });
         } else {
             message.channel.send(`<@${message.author.id}> You do not have permission to use this command.`);

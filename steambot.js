@@ -84,7 +84,7 @@ client.on('messageCreate', (message) => {
                     message.reply('Error generating 2FA code: ' + err.message);
                     return;
                 }
-                const code = SteamTotp.getAuthCode(sharedSecret, offset);
+                const code = SteamTotp.getAuthCode(identitySecret, offset);
                 message.reply(`🔐 **2FA Code:** \`${code}\``);
             });
         } catch (error) {

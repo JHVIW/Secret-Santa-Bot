@@ -15,7 +15,7 @@ const intents = new Intents([
 ]);
 const client = new Client({ intents });
 
-const logChannelId = "1159534191457861715";
+const logChannelId = "1438169605163061289";
 
 let participantsData = [];
 const participantsFilePath = 'participants.json';
@@ -23,6 +23,47 @@ dotenv.config()
 
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
+    const logChannel = client.channels.cache.get(logChannelId);
+    
+    if (logChannel) {
+        // Send the guide message with instructions for both bots
+        logChannel.send(`
+🤖 **Secret Santa Bot Guide** 🤖
+
+**bot.js Commands:**
+\`!signup <trade link> <interest 1> <interest 2> <interest 3>\`
+- Users sign up for Secret Santa with their trade link and 3 interests
+- Example: \`!signup https://steamcommunity.com/tradeoffer/new/?partner=1234567890 PashaBiceps Souvenirs Katowice2019\`
+- Only works in the designated signup channel
+
+\`!rollsantabot\` (Admin only)
+- Assigns Secret Santa pairs to all participants
+- Sends DMs to each participant with their recipient's information
+- Updates participants.json with assignments
+
+\`!senditemsforsecretsanta\`
+- Triggers the trade sending process
+- Sends all collected gifts to their assigned recipients
+
+\`!checksignups\`
+- Shows all participants who have signed up
+- Displays whether each participant has sent their items
+
+**steambot.js Commands:**
+\`!senditemsforsecretsanta\`
+- Also triggers the trade sending process (same as bot.js command)
+
+**How it works:**
+1. Users sign up using \`!signup\` in the signup channel
+2. Admin runs \`!rollsantabot\` to assign pairs
+3. Participants send their gifts to the Steam bot account
+4. Admin runs \`!senditemsforsecretsanta\` to distribute all gifts to recipients
+
+**Note:** The Steam bot automatically accepts incoming trade offers and logs them to this channel.
+        `).catch(console.error);
+    } else {
+        console.error(`Log channel with ID ${logChannelId} not found.`);
+    }
 });
 
 client.on('message', (message) => {
@@ -155,7 +196,7 @@ fs.readFile(participantsFilePath, 'utf8', (err, data) => {
 
 });
 
-function sendTrades() {
+export function sendTrades() {
     console.log('Sending trades...');
 
     // First, fetch the Steam API data once, replace the steamid with your bot account's steamid

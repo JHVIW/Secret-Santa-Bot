@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 
 // Initialize the JSON file with an empty array if it doesn't exist
 function initializeParticipantsFile(participantsFilePath) {
@@ -130,7 +130,7 @@ function assignParticipants(participantsData) {
     return participantsData;
 }
 
-module.exports = {
+export {
     initializeParticipantsFile,
     extractSteamID64,
     shuffleArray,

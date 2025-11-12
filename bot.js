@@ -4,7 +4,8 @@ import path from 'path';
 import Discord from 'discord.js';
 const { Client, Intents } = Discord;
 
-const utils = require('./utils');
+import * as utils from './utils.js';
+import { sendTrades } from './steambot.js';
 
 const intents = new Intents([
     Intents.FLAGS.GUILDS,
@@ -211,7 +212,6 @@ Spread joy and warmth this holiday season! 🎅🌟🎁
             if (err) return;
 
             // Trigger the trade sending process by calling the Steam bot's sendTrades function
-            const sendTrades = require('./steambot').sendTrades;
             sendTrades();
             message.channel.send('All trades are being sent!');
         });

@@ -6,6 +6,8 @@ import { ToadScheduler } from 'toad-scheduler';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import https from 'https';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
 const logChannelId = "1438169605163061289";
 
@@ -14,6 +16,12 @@ const participantsFilePath = 'participants.json';
 let discordClient = null; // Will be set by bot.js
 
 dotenv.config()
+
+// Check if this file is being run directly (not imported)
+// Compare the current file path with the script being executed
+const currentFile = fileURLToPath(import.meta.url);
+const mainModule = process.argv[1] ? path.resolve(process.argv[1]) : null;
+const isMainModule = mainModule && path.resolve(currentFile) === mainModule;
 
 // Function to set the Discord client (called from bot.js)
 export function setDiscordClient(client) {
@@ -40,52 +48,114 @@ var password = process.env.PASSWORD;
 var sharedSecret = process.env.SHAREDSECRET;
 var identitySecret = process.env.IDENTITYSECRET;
 
-let steam_client = new SteamUser();
-let community = new SteamCommunity();
+let steam_client = null;
+let community = null;
+let manager = null;
 const scheduler = new ToadScheduler();
-let manager = new TradeOfferManager({
-    "pollInterval": 10000,
-    "steam": steam_client,
-    "domain": "localhost",
-    "language": "en",
-    "globalAssetCache": true,
 
-});
+// Only initialize Steam client if running as standalone script
+if (isMainModule) {
+    steam_client = new SteamUser();
+    community = new SteamCommunity();
+    manager = new TradeOfferManager({
+        "pollInterval": 10000,
+        "steam": steam_client,
+        "domain": "localhost",
+        "language": "en",
+        "globalAssetCache": true,
+    });
 
-
-var logOnOptions = {};
-SteamTotp.getTimeOffset(function (err, offset, latency) {
-    logOnOptions = {
-        "accountName": username,
-        "password": password,
-        "twoFactorCode": SteamTotp.getAuthCode(sharedSecret, offset)
-    };
-    steam_client.logOn(logOnOptions);
-});
-
-steam_client.on('loggedOn', function () {
-    steam_client.setPersona(SteamUser.EPersonaState.Online);
-    steam_client.gamesPlayed(730);
-});
-
-steam_client.on("webSession", (sessionID, cookies) => {
-    manager.setCookies(cookies, (ERR) => {
-        if (ERR) {
-            sendLogToDiscord('Error setting cookies for trade manager:', ERR);
-        } else {
-            sendLogToDiscord('Cookies set for trade manager.');
+    // Handle Steam Guard code requests
+    steam_client.on('steamGuard', function(domain, callback) {
+        console.log('Steam Guard code requested. Generating code...');
+        if (!sharedSecret) {
+            console.error('ERROR: SHAREDSECRET not found in environment variables!');
+            console.error('Please make sure SHAREDSECRET is set in your .env file.');
+            callback('ERROR: Shared secret not configured');
+            return;
+        }
+        
+        try {
+            // Generate code without offset first (fallback)
+            const code = SteamTotp.getAuthCode(sharedSecret);
+            console.log('Generated Steam Guard code:', code);
+            callback(code);
+        } catch (error) {
+            console.error('Error generating Steam Guard code:', error);
+            // Try with time offset
+            SteamTotp.getTimeOffset(function (err, offset, latency) {
+                if (err) {
+                    console.error('Error getting time offset:', err);
+                    callback('ERROR: Could not generate code');
+                    return;
+                }
+                const code = SteamTotp.getAuthCode(sharedSecret, offset);
+                console.log('Generated Steam Guard code (with offset):', code);
+                callback(code);
+            });
         }
     });
-    community.setCookies(cookies);
-    community.startConfirmationChecker(8000, identitySecret);
-});
 
-community.on('sessionExpired', function (err) {
-    steam_client.webLogOn();
-    sendLogToDiscord('Session expired, relogging...');
-});
+    // Login with 2FA code
+    var logOnOptions = {};
+    if (!sharedSecret) {
+        console.error('ERROR: SHAREDSECRET not found in environment variables!');
+        console.error('Please make sure SHAREDSECRET is set in your .env file.');
+    } else {
+        SteamTotp.getTimeOffset(function (err, offset, latency) {
+            if (err) {
+                console.error('Error getting time offset:', err);
+                console.log('Attempting login without time offset...');
+                // Fallback: try without offset
+                logOnOptions = {
+                    "accountName": username,
+                    "password": password,
+                    "twoFactorCode": SteamTotp.getAuthCode(sharedSecret)
+                };
+            } else {
+                logOnOptions = {
+                    "accountName": username,
+                    "password": password,
+                    "twoFactorCode": SteamTotp.getAuthCode(sharedSecret, offset)
+                };
+            }
+            console.log('Logging in to Steam...');
+            steam_client.logOn(logOnOptions);
+        });
+    }
 
-manager.on("newOffer", (offer) => {
+    steam_client.on('loggedOn', function () {
+        console.log('Successfully logged into Steam!');
+        steam_client.setPersona(SteamUser.EPersonaState.Online);
+        steam_client.gamesPlayed(730);
+        sendLogToDiscord('✅ Successfully logged into Steam!');
+    });
+
+    steam_client.on('error', function(err) {
+        console.error('Steam client error:', err);
+        sendLogToDiscord('❌ Steam client error: ' + err.message);
+    });
+}
+
+if (isMainModule && steam_client) {
+    steam_client.on("webSession", (sessionID, cookies) => {
+        manager.setCookies(cookies, (ERR) => {
+            if (ERR) {
+                sendLogToDiscord('Error setting cookies for trade manager:', ERR);
+            } else {
+                sendLogToDiscord('Cookies set for trade manager.');
+            }
+        });
+        community.setCookies(cookies);
+        community.startConfirmationChecker(8000, identitySecret);
+    });
+
+    community.on('sessionExpired', function (err) {
+        steam_client.webLogOn();
+        sendLogToDiscord('Session expired, relogging...');
+    });
+
+    manager.on("newOffer", (offer) => {
     if (offer.itemsToGive.length == 0 && offer.itemsToReceive.length > 0) {
         offer.accept();
     }
@@ -131,11 +201,12 @@ manager.on("newOffer", (offer) => {
             sendLogToDiscord(`User with SteamID ${senderSteamID} not found in participants.json`);
         }
     });
-});
+    });
 
-community.on("newConfirmation", (CONF) => {
-    community.acceptConfirmationForObject(identitySecret, CONF.id, error);
-});
+    community.on("newConfirmation", (CONF) => {
+        community.acceptConfirmationForObject(identitySecret, CONF.id, error);
+    });
+}
 
 console.log('Reading participants data from participants.json...');
 fs.readFile(participantsFilePath, 'utf8', (err, data) => {
@@ -148,6 +219,11 @@ fs.readFile(participantsFilePath, 'utf8', (err, data) => {
 });
 
 export function sendTrades() {
+    if (!manager) {
+        console.error('Steam trade manager not initialized. Make sure steambot.js is running as a standalone script.');
+        return;
+    }
+    
     console.log('Sending trades...');
 
     // First, fetch the Steam API data once, replace the steamid with your bot account's steamid

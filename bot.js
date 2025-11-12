@@ -169,7 +169,8 @@ client.on('messageCreate', async (message) => {
                 interests,
                 steamID64: steamID64.toString(),
                 assigned: null,
-                sentItemClassIDs: [], // Initialize sentItemClassIDs as an empty array
+                sentItems: [], // Initialize sentItems array (stores full item info with asset IDs)
+                sentItemClassIDs: [], // Keep for backward compatibility
             };
 
             // Write the new participant's data to the JSON file
@@ -277,8 +278,12 @@ Spread joy and warmth this holiday season! 🎅🌟🎁
             }
 
             const participantInfo = participantsData.map(participant => {
-                const hasSentItems = participant.sentItemClassIDs && participant.sentItemClassIDs.length > 0;
-                return `${participant.name} - Items Sent: ${hasSentItems ? 'Yes' : 'No'}`;
+                // Check both new sentItems format and old sentItemClassIDs for backward compatibility
+                const hasSentItems = (participant.sentItems && participant.sentItems.length > 0) || 
+                                    (participant.sentItemClassIDs && participant.sentItemClassIDs.length > 0);
+                const itemCount = participant.sentItems ? participant.sentItems.length : 
+                                 (participant.sentItemClassIDs ? participant.sentItemClassIDs.length : 0);
+                return `${participant.name} - Items Sent: ${hasSentItems ? `Yes (${itemCount} item(s))` : 'No'}`;
             });
             const responseMessage = `Participants who have signed up:\n${participantInfo.join('\n')}`;
             message.channel.send(responseMessage);

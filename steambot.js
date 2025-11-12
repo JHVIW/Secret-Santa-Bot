@@ -163,11 +163,43 @@ if (isMainModule && steam_client) {
     // Get the Steam ID of the sender
     const senderSteamID = offer.partner.getSteamID64();
 
-    // Get class IDs of items being received in the trade
-    const receivedItems = offer.itemsToReceive.map(item => item.classid);
+    // Extract item information including market hash name, pattern, and float
+    // These properties remain constant and uniquely identify items
+    const receivedItems = offer.itemsToReceive.map(item => {
+        const itemInfo = {
+            classid: item.classid,
+            appid: item.appid || 730,
+            contextid: item.contextid || 2
+        };
+        
+        // Get market hash name (item name with wear condition)
+        if (item.market_hash_name) {
+            itemInfo.market_hash_name = item.market_hash_name;
+        }
+        
+        // Get pattern index (for items with variations like patterns, stickers)
+        if (item.pattern_index !== undefined) {
+            itemInfo.pattern_index = item.pattern_index;
+        }
+        
+        // Get float value (wear value, unique per item)
+        if (item.float_value !== undefined) {
+            itemInfo.float_value = item.float_value;
+        }
+        
+        // Get item name from description if available
+        if (item.name) {
+            itemInfo.name = item.name;
+        }
+        
+        return itemInfo;
+    });
+
+    const classIDs = receivedItems.map(item => item.classid);
+    const itemNames = receivedItems.map(item => item.market_hash_name || item.name || `Class ID: ${item.classid}`).join(', ');
 
     sendLogToDiscord(`Received trade offer from SteamID: ${senderSteamID}`);
-    sendLogToDiscord(`Received items with class IDs: ${receivedItems.join(', ')}`);
+    sendLogToDiscord(`Received items: ${itemNames}`);
 
     // Load the participants.json file
     fs.readFile(participantsFilePath, 'utf8', (err, data) => {
@@ -183,11 +215,19 @@ if (isMainModule && steam_client) {
         const user = participantsData.find(participant => participant.steamID64 === senderSteamID);
 
         if (user) {
-            // Update the user's data with the received class IDs
+            // Update the user's data with the received items (class IDs only)
+            // We store class IDs because asset IDs change after trade acceptance
+            if (!user.sentItems) {
+                user.sentItems = [];
+            }
+            // Store item info with class ID (asset IDs will be looked up when sending)
+            user.sentItems.push(...receivedItems);
+            
+            // Keep backward compatibility with sentItemClassIDs
             if (!user.sentItemClassIDs) {
                 user.sentItemClassIDs = [];
             }
-            user.sentItemClassIDs.push(...receivedItems);
+            user.sentItemClassIDs.push(...classIDs);
 
             // Save the updated data back to participants.json
             fs.writeFile(participantsFilePath, JSON.stringify(participantsData, null, 2), (err) => {
@@ -249,38 +289,141 @@ export function sendTrades() {
                 const updatedParticipantsData = JSON.parse(data);
 
                 updatedParticipantsData.forEach((participant) => {
-                    if (participant.assigned && participant.sentItemClassIDs && participant.sentItemClassIDs.length > 0) {
+                    // Check if participant has items to send (prefer new sentItems format, fallback to sentItemClassIDs)
+                    const itemsToSend = participant.sentItems || 
+                        (participant.sentItemClassIDs ? participant.sentItemClassIDs.map(classID => ({ classid: classID })) : []);
+                    
+                    if (participant.assigned && itemsToSend.length > 0) {
                         const recipient = updatedParticipantsData.find((user) => user.userId === participant.assigned);
 
                         if (recipient && recipient.tradelink) {
                             const trade = manager.createOffer(recipient.tradelink);
-
                             trade.setMessage('Here is your secret santa gift, enjoy and have a merry Christmas!');
 
-                            // Loop through each classID and find the corresponding assetid from the pre-fetched steamData
-                            participant.sentItemClassIDs.forEach((classID) => {
-                                const matchingAsset = parsedSteamData.assets.find(asset => asset.classid === classID.toString());
+                            let itemsAdded = 0;
+                            
+                            // Track which asset IDs we've already used to avoid duplicates
+                            const usedAssetIDs = new Set();
+                            
+                            // Create a map of classid to descriptions for faster lookup
+                            const descriptionsMap = {};
+                            if (parsedSteamData.descriptions) {
+                                parsedSteamData.descriptions.forEach(desc => {
+                                    if (desc.classid) {
+                                        descriptionsMap[desc.classid] = desc;
+                                    }
+                                });
+                            }
+                            
+                            // Loop through each item
+                            itemsToSend.forEach((item) => {
+                                if (!item.classid) {
+                                    console.error('Error: Item missing class ID');
+                                    return;
+                                }
+                                
+                                let assetToUse = null;
+                                
+                                // Try to find matching asset using ALL available properties (market hash name, pattern, and float)
+                                // All stored properties must match for a successful match
+                                assetToUse = parsedSteamData.assets.find(asset => {
+                                    // Skip if already used
+                                    if (usedAssetIDs.has(asset.assetid)) {
+                                        return false;
+                                    }
+                                    
+                                    // Must match class ID, appid, and contextid
+                                    if (asset.classid !== item.classid.toString() ||
+                                        asset.appid !== (item.appid || 730) ||
+                                        asset.contextid !== (item.contextid || 2)) {
+                                        return false;
+                                    }
+                                    
+                                    // Get the description for this asset
+                                    const description = descriptionsMap[asset.classid];
+                                    if (!description) {
+                                        // If no description available, can't match on properties - skip
+                                        return false;
+                                    }
+                                    
+                                    // Check if we have any stored properties to match on
+                                    const hasStoredProperties = item.market_hash_name || 
+                                                               item.pattern_index !== undefined || 
+                                                               item.float_value !== undefined;
+                                    
+                                    if (!hasStoredProperties) {
+                                        // No stored properties, fallback to class ID match only
+                                        return true;
+                                    }
+                                    
+                                    // Match ALL available properties - all must match
+                                    let matches = true;
+                                    
+                                    // Match market hash name (if stored, must match)
+                                    if (item.market_hash_name) {
+                                        if (!description.market_hash_name || 
+                                            description.market_hash_name !== item.market_hash_name) {
+                                            matches = false;
+                                        }
+                                    }
+                                    
+                                    // Match pattern index (if stored, must match)
+                                    if (item.pattern_index !== undefined) {
+                                        if (description.pattern_index === undefined || 
+                                            description.pattern_index !== item.pattern_index) {
+                                            matches = false;
+                                        }
+                                    }
+                                    
+                                    // Match float value (if stored, must match with tolerance)
+                                    if (item.float_value !== undefined) {
+                                        if (description.float_value === undefined) {
+                                            matches = false;
+                                        } else {
+                                            const tolerance = 0.000001;
+                                            if (Math.abs(description.float_value - item.float_value) > tolerance) {
+                                                matches = false;
+                                            }
+                                        }
+                                    }
+                                    
+                                    return matches;
+                                });
 
-                                if (matchingAsset) {
+                                if (assetToUse) {
+                                    // Mark this asset as used
+                                    usedAssetIDs.add(assetToUse.assetid);
+                                    
                                     // Add the assetid to the trade
                                     trade.addMyItem({
-                                        appid: 730,
-                                        contextid: 2,
-                                        assetid: matchingAsset.assetid
+                                        appid: item.appid || 730,
+                                        contextid: item.contextid || 2,
+                                        assetid: assetToUse.assetid
                                     });
-
-                                    // Send the trade offer (this can be moved outside if you want to batch add all items before sending)
-                                    trade.send((err, status) => {
-                                        if (err) {
-                                            console.error('Error sending trade:', err);
-                                        } else {
-                                            sendLogToDiscord('Trade sent!');
-                                        }
-                                    });
+                                    itemsAdded++;
+                                    
+                                    const itemName = item.market_hash_name || item.name || `Class ID: ${item.classid}`;
+                                    console.log(`Added item to trade: ${itemName}`);
                                 } else {
-                                    console.error('Error fetching assetId for classId:', classID);
+                                    const itemName = item.market_hash_name || item.name || `Class ID: ${item.classid}`;
+                                    console.error(`Error: Could not find matching item in inventory - ${itemName}`);
+                                    sendLogToDiscord(`⚠️ Could not find item in inventory - ${itemName}`);
                                 }
                             });
+
+                            // Send the trade offer once all items are added
+                            if (itemsAdded > 0) {
+                                trade.send((err, status) => {
+                                    if (err) {
+                                        console.error('Error sending trade:', err);
+                                        sendLogToDiscord(`❌ Error sending trade to ${recipient.name}: ${err.message}`);
+                                    } else {
+                                        sendLogToDiscord(`✅ Trade sent to ${recipient.name} with ${itemsAdded} item(s)!`);
+                                    }
+                                });
+                            } else {
+                                sendLogToDiscord(`⚠️ No items found in inventory for ${recipient.name}`);
+                            }
                         }
                     }
                 });

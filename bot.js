@@ -57,7 +57,8 @@ Example: \`!signup https://steamcommunity.com/tradeoffer/new/?partner=1234567890
 🎁 Plan your gift with care! It should be approximately **$20 (145 RMB)**, and please keep it within 10% of this price (around $18 to $22).
 🎁 Send your heartwarming gift to the bot before **December 16th**! 
 🎁 The bot will automatically send your gift to your assigned recipient on **December 25th**!
-🎁 Pairs will be magically revealed on **November 11th**. This is also when you will receive the bot's tradelink!
+🎁 Pairs will be magically revealed on **November 26th**. This is also when you will receive the bot's tradelink!
+🎁 Please don't send items to the bot before December 5th because the bot is on tradehold and needs a small amount of testing afterwards.
 
 🎁🎉 Have fun, spread the joy, and happy gifting! 🎉🎁
 

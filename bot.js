@@ -5,7 +5,8 @@ import Discord from 'discord.js';
 const { Client, Intents } = Discord;
 
 import * as utils from './utils.js';
-import { sendTrades } from './steambot.js';
+import { sendTrades, setDiscordClient } from './steambot.js';
+import SteamTotp from 'steam-totp';
 
 const intents = new Intents([
     Intents.FLAGS.GUILDS,
@@ -33,7 +34,13 @@ const signupChannelId = '1159537369087750154';
 
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
+    
+    // Set the Discord client for steambot.js
+    setDiscordClient(client);
+    
     const startupChannel = client.channels.cache.get(signupChannelId);
+    const logChannelId = "1438169605163061289";
+    const logChannel = client.channels.cache.get(logChannelId);
 
     if (startupChannel) {
         // Send the startup message with the tutorial and rules
@@ -58,6 +65,43 @@ Example: \`!signup https://steamcommunity.com/tradeoffer/new/?partner=1234567890
         `);
     } else {
         console.error('Startup channel not found.');
+    }
+    
+    if (logChannel) {
+        // Send the guide message with instructions for both bots
+        logChannel.send(`
+🤖 **Secret Santa Bot Guide** 🤖
+
+**bot.js Commands:**
+\`!signup <trade link> <interest 1> <interest 2> <interest 3>\`
+- Users sign up for Secret Santa with their trade link and 3 interests
+- Example: \`!signup https://steamcommunity.com/tradeoffer/new/?partner=1234567890 PashaBiceps Souvenirs Katowice2019\`
+- Only works in the designated signup channel
+
+\`!rollsantabot\` (Admin only)
+- Assigns Secret Santa pairs to all participants
+- Sends DMs to each participant with their recipient's information
+- Updates participants.json with assignments
+
+\`!senditemsforsecretsanta\`
+- Triggers the trade sending process
+- Sends all collected gifts to their assigned recipients
+
+\`!checksignups\`
+- Shows all participants who have signed up
+- Displays whether each participant has sent their items
+
+\`!code\`
+- Generates and displays the current 2FA code for the Steam account
+
+**How it works:**
+1. Users sign up using \`!signup\` in the signup channel
+2. Admin runs \`!rollsantabot\` to assign pairs
+3. Participants send their gifts to the Steam bot account
+4. Admin runs \`!senditemsforsecretsanta\` to distribute all gifts to recipients
+
+**Note:** The Steam bot automatically accepts incoming trade offers and logs them to this channel.
+        `).catch(console.error);
     }
 });
 
@@ -237,6 +281,21 @@ Spread joy and warmth this holiday season! 🎅🌟🎁
             const responseMessage = `Participants who have signed up:\n${participantInfo.join('\n')}`;
             message.channel.send(responseMessage);
         });
+    }
+
+    // Command: !code
+    else if (command === 'code') {
+        try {
+            const sharedSecret = process.env.SHAREDSECRET;
+            if (!sharedSecret) {
+                message.reply('❌ Steam shared secret not configured.');
+                return;
+            }
+            const code = SteamTotp.getAuthCode(sharedSecret);
+            message.reply(`🔐 **2FA Code:** \`${code}\``);
+        } catch (error) {
+            message.reply('❌ Error generating 2FA code: ' + error.message);
+        }
     }
 });
 
